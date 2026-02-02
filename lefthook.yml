@@ -19,17 +19,25 @@
 #
 pre-commit:
   parallel: true
-  jobs:
-    - name: test
+  commands:
+    gci-format:
       glob: "*.go"
-      run: make test
+      run: make gci-format
+      stage_fixed: true
 
-    - name: lint
+    lint:
       glob: "*.go"
       run: make lint
 
+    test:
+      glob: "*.go"
+      run: make test
+
+    vulncheck:
+      glob: "{go.mod,go.sum,*.go}"
+      run: govulncheck ./...
+
 commit-msg:
-  parallel: true
-  jobs:
-    - name: commit-check
-      run: cog check
+  commands:
+    commit-check:
+      run: cog verify --file {1}

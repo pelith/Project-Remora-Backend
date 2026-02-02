@@ -1,6 +1,6 @@
 module remora
 
-go 1.24.4
+go 1.25.6
 
 tool (
 	github.com/evilmartians/lefthook
