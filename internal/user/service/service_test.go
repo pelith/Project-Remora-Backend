@@ -46,6 +46,7 @@ func TestService_ByID(t *testing.T) {
 				repo.EXPECT().
 					GetUser(gomock.Any(), id).
 					Return(wantUser, nil)
+
 				return repo
 			},
 			want: wantUser,
@@ -57,6 +58,7 @@ func TestService_ByID(t *testing.T) {
 				repo.EXPECT().
 					GetUser(gomock.Any(), id).
 					Return(user.User{}, user.ErrNotFound)
+
 				return repo
 			},
 			wantErr: true,
@@ -69,6 +71,7 @@ func TestService_ByID(t *testing.T) {
 				repo.EXPECT().
 					GetUser(gomock.Any(), id).
 					Return(user.User{}, errDB)
+
 				return repo
 			},
 			wantErr: true,

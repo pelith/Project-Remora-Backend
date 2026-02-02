@@ -18,7 +18,7 @@ type repo struct {
 }
 
 // New returns a Repository implemented with *db.Queries.
-func New(q *db.Queries) Repository {
+func New(q *db.Queries) Repository { //nolint:ireturn // factory returns interface
 	return &repo{q: q}
 }
 

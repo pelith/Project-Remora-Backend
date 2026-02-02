@@ -28,6 +28,7 @@ func Handler(fn func(*http.Request) (*Response, *ErrorResponse)) http.HandlerFun
 		if errResp != nil {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(errResp.StatusCode)
+
 			body := map[string]string{"error": errResp.ErrorMsg}
 			if encErr := json.NewEncoder(w).Encode(body); encErr != nil {
 				http.Error(w, fmt.Sprintf("encode json: %v", encErr), http.StatusInternalServerError)
@@ -41,8 +42,10 @@ func Handler(fn func(*http.Request) (*Response, *ErrorResponse)) http.HandlerFun
 				w.Header()[k] = v
 			}
 		}
+
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(resp.StatusCode)
+
 		if resp.Body != nil {
 			if encErr := json.NewEncoder(w).Encode(resp.Body); encErr != nil {
 				http.Error(w, fmt.Sprintf("encode json: %v", encErr), http.StatusInternalServerError)
@@ -76,7 +79,7 @@ func (e *errorRenderer) Render(w http.ResponseWriter, _ *http.Request) {
 }
 
 // NewUnauthorizedError returns an ErrorRenderer for 401 Unauthorized.
-func NewUnauthorizedError(err error) ErrorRenderer {
+func NewUnauthorizedError(err error) ErrorRenderer { //nolint:ireturn // public API returns interface
 	msg := "unauthorized"
 	if err != nil {
 		msg = err.Error()
@@ -86,7 +89,7 @@ func NewUnauthorizedError(err error) ErrorRenderer {
 }
 
 // NewInternalServerError returns an ErrorRenderer for 500 Internal Server Error.
-func NewInternalServerError(err error) ErrorRenderer {
+func NewInternalServerError(err error) ErrorRenderer { //nolint:ireturn // public API returns interface
 	msg := "internal error"
 	if err != nil {
 		msg = err.Error()

@@ -169,10 +169,15 @@ linters:
     - paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # checks the struct tags
     - thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    - wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
+    - wsl_v5 # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines (replaces deprecated wsl)
 
   # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
   settings:
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+
     cyclop:
       # The maximal code complexity to report.
       # Default: 10
@@ -458,4 +463,5 @@ linters:
           - goconst
           - gosec
           - noctx
+          - wsl_v5
           - wrapcheck

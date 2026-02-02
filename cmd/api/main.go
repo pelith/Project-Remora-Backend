@@ -72,8 +72,10 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	errCh := make(chan error, 1)
+
 	go func() {
 		logger.InfoContext(runCtx, "starting http server", slog.String("addr", srv.Addr))
+
 		errCh <- srv.ListenAndServe()
 	}()
 

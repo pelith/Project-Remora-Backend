@@ -27,7 +27,7 @@ gci-format:
 	@gci write --skip-generated -s standard -s default -s "Prefix(remora)" ./
 
 test:
-	@go test ./... -race -leak  
+	@go test ./... -race  
 
 coverage:
 	@go test -coverprofile=coverage.out ./internal/...
