@@ -1,0 +1,22 @@
+name: Build And Push
+
+on:
+  push:
+    tags:
+      - "**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/check.yml
+
+  # build-api:
+  #   needs: checks
+  #   uses: ./.github/workflows/image-build-push.yml
+  #   with:
+  #     application: "api"
+  #     image_name: "api"
+  #   secrets: inherit

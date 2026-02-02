@@ -1,0 +1,28 @@
+name: remora-api
+pprof: false
+log:
+  level: INFO
+app_config:
+  http:
+    addr: 127.0.0.1:8080
+    read_timeout: 5s
+    write_timeout: 10s
+    cors:
+      enable: false
+      allowed_origins: ["*"]
+      allowed_methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      allowed_headers: ["*"]
+      exposed_headers: []
+      max_age: 600
+      allow_credentials: false
+  postgresql:
+    database: remora
+    host: 127.0.0.1
+    port: "5432"
+    user: postgres
+    password: postgres
+  redis:
+    host: 127.0.0.1
+    port: "6379"
+    password: ""
+    db: 0

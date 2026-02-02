@@ -1,0 +1,54 @@
+# name: Image Build And Push
+
+# on:
+#   workflow_call:
+#     inputs:
+#       application:
+#         required: true
+#         type: string
+#       image_name:
+#         required: true
+#         type: string
+
+# permissions:
+#   id-token: write # This is required for requesting the JWT
+#   contents: read # This is required for actions/checkout
+
+# env:
+#   GCP_REGISTRY:
+#   GCP_REPOSITORY:
+#   IMAGE_TAG: ${{ github.ref_name }}
+#   PLATFORMS: linux/amd64
+
+# jobs:
+#   build-image:
+#     name: Build image and push
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: google-github-actions/auth@v1
+#         with:
+#           workload_identity_provider: "${{ secrets.WI_PROVIDER_ID }}"
+#           service_account: "${{ secrets.GSA_ID }}"
+
+#       - uses: google-github-actions/setup-gcloud@v1
+#         with:
+#           version: latest
+
+#       - name: sign-in to artifact registry
+#         run: |
+#           gcloud auth configure-docker ${{ secrets.REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+
+#       - name: Build and push
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           build-args: |
+#             APP=${{ inputs.application }}
+#           push: true
+#           tags: ${{ env.GCP_REGISTRY }}/${{ env.GCP_REPOSITORY }}/${{ inputs.image_name }}:${{ env.IMAGE_TAG }}
+#           cache-from: type=gha
+#           cache-to: type=gha,mode=max

@@ -1,0 +1,35 @@
+# EXAMPLE USAGE:
+#
+#   Refer for explanation to following link:
+#   https://lefthook.dev/configuration/
+#
+# pre-push:
+#   jobs:
+#     - name: packages audit
+#       tags:
+#         - frontend
+#         - security
+#       run: yarn audit
+#
+#     - name: gems audit
+#       tags:
+#         - backend
+#         - security
+#       run: bundle audit
+#
+pre-commit:
+  parallel: true
+  jobs:
+    - name: test
+      glob: "*.go"
+      run: make test
+
+    - name: lint
+      glob: "*.go"
+      run: make lint
+
+commit-msg:
+  parallel: true
+  jobs:
+    - name: commit-check
+      run: cog check
