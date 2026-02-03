@@ -18,6 +18,5 @@ var (
 	ErrNoTickRanges       = errors.New("no tick ranges")
 	ErrInvalidWeight      = errors.New("invalid weight")
 	ErrInvalidTotalAmount = errors.New("invalid total amount")
-	ErrInvalidSlippage    = errors.New("invalid slippage tolerance")
 	ErrZeroTotalWeight    = errors.New("zero total weight")
 )

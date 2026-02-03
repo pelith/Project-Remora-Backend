@@ -13,5 +13,4 @@ type RebalanceAllocation struct {
 	TickUpper int
 	Weight    decimal.Decimal
 	Amount    decimal.Decimal
-	AmountMin decimal.Decimal
 }

@@ -17,34 +17,30 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 		name       string
 		ranges     []liquidity.TickRangeWeight
 		amount     decimal.Decimal
-		slippage   decimal.Decimal
 		want       []liquidity.RebalanceAllocation
 		wantErr    bool
 		wantErrIs  error
 		wantAmount decimal.Decimal
 	}{
 		{
-			name: "success - weighted allocation with slippage",
+			name: "success - weighted allocation",
 			ranges: []liquidity.TickRangeWeight{
 				{TickLower: -100, TickUpper: 0, Weight: mustDecimal(t, "1")},
 				{TickLower: 0, TickUpper: 100, Weight: mustDecimal(t, "3")},
 			},
-			amount:   mustDecimal(t, "100"),
-			slippage: mustDecimal(t, "0.01"),
+			amount: mustDecimal(t, "100"),
 			want: []liquidity.RebalanceAllocation{
 				{
 					TickLower: -100,
 					TickUpper: 0,
 					Weight:    mustDecimal(t, "1"),
 					Amount:    mustDecimal(t, "25"),
-					AmountMin: mustDecimal(t, "24.75"),
 				},
 				{
 					TickLower: 0,
 					TickUpper: 100,
 					Weight:    mustDecimal(t, "3"),
 					Amount:    mustDecimal(t, "75"),
-					AmountMin: mustDecimal(t, "74.25"),
 				},
 			},
 			wantAmount: mustDecimal(t, "100"),
@@ -55,22 +51,19 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				{TickLower: -200, TickUpper: -100, Weight: mustDecimal(t, "0")},
 				{TickLower: -100, TickUpper: 100, Weight: mustDecimal(t, "2")},
 			},
-			amount:   mustDecimal(t, "10"),
-			slippage: mustDecimal(t, "0.05"),
+			amount: mustDecimal(t, "10"),
 			want: []liquidity.RebalanceAllocation{
 				{
 					TickLower: -200,
 					TickUpper: -100,
 					Weight:    mustDecimal(t, "0"),
 					Amount:    mustDecimal(t, "0"),
-					AmountMin: mustDecimal(t, "0"),
 				},
 				{
 					TickLower: -100,
 					TickUpper: 100,
 					Weight:    mustDecimal(t, "2"),
 					Amount:    mustDecimal(t, "10"),
-					AmountMin: mustDecimal(t, "9.5"),
 				},
 			},
 			wantAmount: mustDecimal(t, "10"),
@@ -79,7 +72,6 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 			name:       "error - no ranges",
 			ranges:     nil,
 			amount:     mustDecimal(t, "1"),
-			slippage:   mustDecimal(t, "0"),
 			wantErr:    true,
 			wantErrIs:  liquidity.ErrNoTickRanges,
 			wantAmount: mustDecimal(t, "0"),
@@ -90,7 +82,6 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				{TickLower: 100, TickUpper: 100, Weight: mustDecimal(t, "1")},
 			},
 			amount:     mustDecimal(t, "1"),
-			slippage:   mustDecimal(t, "0"),
 			wantErr:    true,
 			wantErrIs:  liquidity.ErrInvalidTickRange,
 			wantAmount: mustDecimal(t, "0"),
@@ -101,7 +92,6 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				{TickLower: 0, TickUpper: 10, Weight: mustDecimal(t, "-1")},
 			},
 			amount:     mustDecimal(t, "1"),
-			slippage:   mustDecimal(t, "0"),
 			wantErr:    true,
 			wantErrIs:  liquidity.ErrInvalidWeight,
 			wantAmount: mustDecimal(t, "0"),
@@ -112,20 +102,8 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				{TickLower: 0, TickUpper: 10, Weight: mustDecimal(t, "1")},
 			},
 			amount:     mustDecimal(t, "-1"),
-			slippage:   mustDecimal(t, "0"),
 			wantErr:    true,
 			wantErrIs:  liquidity.ErrInvalidTotalAmount,
-			wantAmount: mustDecimal(t, "0"),
-		},
-		{
-			name: "error - slippage > 1",
-			ranges: []liquidity.TickRangeWeight{
-				{TickLower: 0, TickUpper: 10, Weight: mustDecimal(t, "1")},
-			},
-			amount:     mustDecimal(t, "1"),
-			slippage:   mustDecimal(t, "1.01"),
-			wantErr:    true,
-			wantErrIs:  liquidity.ErrInvalidSlippage,
 			wantAmount: mustDecimal(t, "0"),
 		},
 		{
@@ -135,7 +113,6 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				{TickLower: 10, TickUpper: 20, Weight: mustDecimal(t, "0")},
 			},
 			amount:     mustDecimal(t, "1"),
-			slippage:   mustDecimal(t, "0"),
 			wantErr:    true,
 			wantErrIs:  liquidity.ErrZeroTotalWeight,
 			wantAmount: mustDecimal(t, "0"),
@@ -150,7 +127,7 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := liquidity.BuildRebalanceAllocations(tt.ranges, tt.amount, tt.slippage)
+			got, err := liquidity.BuildRebalanceAllocations(tt.ranges, tt.amount)
 			if err != nil {
 				if !tt.wantErr {
 					t.Fatalf("BuildRebalanceAllocations() failed: %v", err)
@@ -171,7 +148,7 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 				t.Fatalf("BuildRebalanceAllocations() mismatch (-want +got):\n%s", diff)
 			}
 
-			sum := decimal.NewFromInt(0)
+			sum := decimal.Zero
 			for _, allocation := range got {
 				sum = sum.Add(allocation.Amount)
 			}
