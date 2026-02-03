@@ -1,0 +1,105 @@
+{
+    "info": {
+      "name": "Uniswap v4 Liquidity Distribution",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      "description": "Uniswap v4 mainnet pools for liquidity distribution API"
+    },
+    "item": [
+      {
+        "name": "ETH / USDC",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/liquidity/distribution",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "liquidity", "distribution"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"poolKey\": {\n    \"currency0\": \"0x0000000000000000000000000000000000000000\",\n    \"currency1\": \"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\n    \"fee\": 3000,\n    \"tickSpacing\": 60,\n    \"hooks\": \"0x0000000000000000000000000000000000000000\"\n  },\n  \"binSizeTicks\": 100,\n  \"tickRange\": 10000\n}"
+          }
+        }
+      },
+      {
+        "name": "ETH / USDT",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/liquidity/distribution",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "liquidity", "distribution"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"poolKey\": {\n    \"currency0\": \"0x0000000000000000000000000000000000000000\",\n    \"currency1\": \"0xdAC17F958D2ee523a2206206994597C13D831ec7\",\n    \"fee\": 3000,\n    \"tickSpacing\": 60,\n    \"hooks\": \"0x0000000000000000000000000000000000000000\"\n  },\n  \"binSizeTicks\": 100,\n  \"tickRange\": 10000\n}"
+          }
+        }
+      },
+      {
+        "name": "ETH / WBTC",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/liquidity/distribution",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "liquidity", "distribution"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"poolKey\": {\n    \"currency0\": \"0x0000000000000000000000000000000000000000\",\n    \"currency1\": \"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599\",\n    \"fee\": 3000,\n    \"tickSpacing\": 60,\n    \"hooks\": \"0x0000000000000000000000000000000000000000\"\n  },\n  \"binSizeTicks\": 100,\n  \"tickRange\": 10000\n}"
+          }
+        }
+      },
+      {
+        "name": "USDC / USDT",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/liquidity/distribution",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "liquidity", "distribution"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"poolKey\": {\n    \"currency0\": \"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\n    \"currency1\": \"0xdAC17F958D2ee523a2206206994597C13D831ec7\",\n    \"fee\": 500,\n    \"tickSpacing\": 10,\n    \"hooks\": \"0x0000000000000000000000000000000000000000\"\n  },\n  \"binSizeTicks\": 100,\n  \"tickRange\": 10000\n}"
+          }
+        }
+      },
+      {
+        "name": "ETH / DAI",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/liquidity/distribution",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "liquidity", "distribution"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"poolKey\": {\n    \"currency0\": \"0x0000000000000000000000000000000000000000\",\n    \"currency1\": \"0x6B175474E89094C44Da98b954EedeAC495271d0F\",\n    \"fee\": 3000,\n    \"tickSpacing\": 60,\n    \"hooks\": \"0x0000000000000000000000000000000000000000\"\n  },\n  \"binSizeTicks\": 100,\n  \"tickRange\": 10000\n}"
+          }
+        }
+      }
+    ]
+  }
+  

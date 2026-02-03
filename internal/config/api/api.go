@@ -19,8 +19,12 @@ type Config struct {
 			AllowCredentials bool     `mapstructure:"allow_credentials" structs:"allow_credentials"`
 		} `mapstructure:"cors" structs:"cors"`
 	} `mapstructure:"http" structs:"http"`
+	Log struct {
+		Level string `mapstructure:"level" structs:"level"`
+	} `mapstructure:"log" structs:"log"`
 	PostgreSQL PostgreSQL `mapstructure:"postgresql" structs:"postgresql"`
 	Redis      Redis      `mapstructure:"redis" structs:"redis"`
+	Ethereum   Ethereum   `mapstructure:"ethereum" structs:"ethereum"`
 }
 
 type PostgreSQL struct {
@@ -36,4 +40,10 @@ type Redis struct {
 	Port     string `mapstructure:"port" structs:"port"`
 	Password string `mapstructure:"password" structs:"password"`
 	DB       int    `mapstructure:"db" structs:"db"`
+}
+
+type Ethereum struct {
+	RPCURL                string `mapstructure:"rpc_url" structs:"rpc_url"`
+	StateViewContractAddr string `mapstructure:"stateview_contract_addr" structs:"stateview_contract_addr"`
+	UseMock               bool   `mapstructure:"use_mock" structs:"use_mock"`
 }

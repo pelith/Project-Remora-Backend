@@ -26,3 +26,7 @@ app_config:
     port: "6379"
     password: ""
     db: 0
+  ethereum:
+    rpc_url: "https://eth-mainnet.g.alchemy.com/v2/your_api_key"
+    stateview_contract_addr: "0x7ffe42c4a5deea5b0fec41c94c136cf115597227"
+    use_mock: false

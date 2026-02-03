@@ -58,3 +58,8 @@ sqlc:
 
 sqlc-lint:
 	sqlc vet -f ./database/sqlc.yml
+
+# Contracts
+
+abigen:
+	@abigen --abi contracts/stateview/StateView.json --pkg contracts --type StateView --out internal/liquidity/repository/contracts/stateview.go

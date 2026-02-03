@@ -6,6 +6,9 @@ import (
 	"net/http"
 )
 
+// HandlerFunc is the function signature for API handlers that return Response and ErrorResponse.
+type HandlerFunc func(*http.Request) (*Response, *ErrorResponse)
+
 // Response is the success payload returned by handlers. The Handler writes it as JSON.
 type Response struct {
 	StatusCode int
@@ -20,9 +23,9 @@ type ErrorResponse struct {
 	Err        error
 }
 
-// Handler wraps a function that returns (*Response, *ErrorResponse) into an http.HandlerFunc.
+// Handler wraps a HandlerFunc into an http.HandlerFunc.
 // It writes Content-Type, status code, and JSON body in one place (per api-guide Response Construction).
-func Handler(fn func(*http.Request) (*Response, *ErrorResponse)) http.HandlerFunc {
+func Handler(fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp, errResp := fn(r)
 		if errResp != nil {

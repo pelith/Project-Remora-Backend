@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"remora/internal/httpwrap"
 	"remora/internal/user"
 )
 
-// AddRoutes registers user-related routes on the provided mux.
-func AddRoutes(mux *http.ServeMux, svc user.Service) {
-	mux.HandleFunc("GET /users/{id}", httpwrap.Handler(getUser(svc)))
+// AddRoutes registers user-related routes on the provided router.
+func AddRoutes(r chi.Router, svc user.Service) {
+	r.Get("/users/{id}", httpwrap.Handler(getUser(svc)))
 }
 
 // UserResponse is the API response for a single user (api-guide: Response types use suffix Response).
@@ -24,10 +25,12 @@ type UserResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// getUser returns a handler that fetches a user by ID. It returns (*Response, *ErrorResponse) per api-guide Response Construction.
-func getUser(svc user.Service) func(*http.Request) (*httpwrap.Response, *httpwrap.ErrorResponse) {
+// getUser returns a handler that fetches a user by ID.
+func getUser(svc user.Service) httpwrap.HandlerFunc {
 	return func(r *http.Request) (*httpwrap.Response, *httpwrap.ErrorResponse) {
-		id, err := uuid.Parse(r.PathValue("id"))
+		idStr := chi.URLParam(r, "id")
+
+		id, err := uuid.Parse(idStr)
 		if err != nil {
 			return nil, httpwrap.NewInvalidParamErrorResponse("id")
 		}

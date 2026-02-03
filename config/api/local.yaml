@@ -1,3 +1,5 @@
 app_config:
   postgresql:
     database: remora_local
+  ethereum:
+    use_mock: false

@@ -5,6 +5,15 @@ description: Go development guidelines for the remora codebase. Use when working
 
 # Go Development Guide
 
+## How to Use This Skill (must follow)
+
+When doing any Go work in this repo, treat `.cursor/references/` as the source of truth and **read the relevant reference before coding**:
+
+- API handler / routing / response shape → `@.cursor/references/api-guide.md`
+- API handler tests / gomock / request helpers → `@.cursor/references/api-testing-guide.md`
+- Go style / naming / error handling / logging → `@.cursor/references/style-guide.md`
+- Testing conventions / goleak / patterns → `@.cursor/references/testing-guide.md`
+
 ## Project Structure
 
 ```
@@ -18,7 +27,8 @@ remora/
     ├── api/                      # HTTP server, routing, middleware
     ├── config/                   # Config loading + typed app configs
     ├── db/                       # sqlc-generated code
-    └── {domain}/                 # Domain packages (example: user/)
+    ├── httpwrap/                 # HTTP response utilities
+    └── {domain}/                 # Domain packages (examples: user/, liquidity/)
 ```
 
 ## Required Workflow After Code Changes
