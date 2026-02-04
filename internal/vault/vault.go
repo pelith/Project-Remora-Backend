@@ -129,8 +129,8 @@ func (c *Client) GetState(ctx context.Context) (*VaultState, error) {
 		Agent:            agent,
 		AgentPaused:      agentPaused,
 		SwapAllowed:      swapAllowed,
-		AllowedTickLower: int32(allowedTickLower.Int64()),
-		AllowedTickUpper: int32(allowedTickUpper.Int64()),
+		AllowedTickLower: int32(allowedTickLower.Int64()), //nolint:gosec // tick is int24, fits in int32
+		AllowedTickUpper: int32(allowedTickUpper.Int64()), //nolint:gosec // tick is int24, fits in int32
 		MaxPositionsK:    maxPositionsK,
 		PoolKey:          poolKey,
 		PoolID:           poolID,
@@ -147,8 +147,9 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 		return nil, err
 	}
 
-	positions := make([]Position, 0, length.Int64())
-	for i := int64(0); i < length.Int64(); i++ {
+	n := length.Int64()
+	positions := make([]Position, 0, n)
+	for i := range n {
 		tokenID, err := c.contract.PositionIds(opts, big.NewInt(i))
 		if err != nil {
 			return nil, err
@@ -166,8 +167,8 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 
 		positions = append(positions, Position{
 			TokenID:   tokenID,
-			TickLower: int32(tickLower.Int64()),
-			TickUpper: int32(tickUpper.Int64()),
+			TickLower: int32(tickLower.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
+			TickUpper: int32(tickUpper.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
 		})
 	}
 

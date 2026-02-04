@@ -17,7 +17,7 @@ func NewMockVaultSource(addresses []common.Address) *MockVaultSource {
 }
 
 // GetVaultAddresses returns the list of vault addresses.
-func (m *MockVaultSource) GetVaultAddresses(ctx context.Context) ([]common.Address, error) {
+func (m *MockVaultSource) GetVaultAddresses(_ context.Context) ([]common.Address, error) {
 	return m.addresses, nil
 }
 

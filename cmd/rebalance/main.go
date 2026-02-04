@@ -97,23 +97,23 @@ func main() {
 }
 
 func runAgent(ctx context.Context, agentSvc *agent.Service, logger *slog.Logger) {
-	logger.Info("running rebalance check")
+	logger.InfoContext(ctx, "running rebalance check")
 
 	results, err := agentSvc.Run(ctx)
 	if err != nil {
-		logger.Error("rebalance run failed", slog.Any("error", err))
+		logger.ErrorContext(ctx, "rebalance run failed", slog.Any("error", err))
 		return
 	}
 
 	for _, r := range results {
-		logger.Info("vault processed",
+		logger.InfoContext(ctx, "vault processed",
 			slog.String("address", r.VaultAddress.Hex()),
 			slog.Bool("rebalanced", r.Rebalanced),
 			slog.String("reason", r.Reason),
 		)
 	}
 
-	logger.Info("rebalance check completed", slog.Int("vaults", len(results)))
+	logger.InfoContext(ctx, "rebalance check completed", slog.Int("vaults", len(results)))
 }
 
 func parseRebalanceSchedule() string {

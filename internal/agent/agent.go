@@ -72,7 +72,7 @@ func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 }
 
 // processVault handles rebalance logic for a single vault.
-func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) RebalanceResult {
+func (s *Service) processVault(_ context.Context, vaultAddr common.Address) RebalanceResult {
 	s.logger.Info("processing vault", slog.String("address", vaultAddr.Hex()))
 
 	// Step 1: Create vault client
