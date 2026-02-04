@@ -40,3 +40,5 @@ internal/liquidity/repository/contracts/*.go
 # Local tools (large binary)
 toolbox
 .env
+/rebalance
+/bin/
