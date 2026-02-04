@@ -5,6 +5,7 @@ package strategy
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"remora/internal/allocation"
 	"remora/internal/liquidity"
@@ -26,9 +27,10 @@ type ComputeParams struct {
 
 // ComputeResult contains the computed target positions.
 type ComputeResult struct {
-	CurrentTick int32               // Current pool tick
+	CurrentTick int32                // Current pool tick
 	Segments    []allocation.Segment // Target LP segments
 	Metrics     allocation.Metrics   // Coverage metrics
+	ComputedAt  time.Time            // Timestamp when computation was performed
 }
 
 // Position represents an existing LP position (for future use with gap calculation).

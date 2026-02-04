@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"remora/internal/allocation"
 	"remora/internal/liquidity"
@@ -44,6 +45,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 			CurrentTick: dist.CurrentTick,
 			Segments:    nil,
 			Metrics:     allocation.Metrics{},
+			ComputedAt:  time.Now().UTC(),
 		}, nil
 	}
 
@@ -54,6 +56,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 		CurrentTick: dist.CurrentTick,
 		Segments:    result.Segments,
 		Metrics:     result.Metrics,
+		ComputedAt:  time.Now().UTC(),
 	}, nil
 }
 
