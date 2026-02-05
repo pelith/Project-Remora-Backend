@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -66,6 +67,35 @@ func main() {
 		logger,
 		stateViewAddr,
 	)
+
+	// Load protection settings from env
+	swapSlippage := os.Getenv("SWAP_SLIPPAGE_BPS")
+	maxGasPrice := os.Getenv("MAX_GAS_PRICE_GWEI")
+	devThreshold := os.Getenv("DEVIATION_THRESHOLD")
+
+	sSlippage := int64(50) // default 0.5%
+	if swapSlippage != "" {
+		if val, err := strconv.ParseInt(swapSlippage, 10, 64); err == nil {
+			sSlippage = val
+		}
+	}
+
+	mGasPrice := 1.0 // default 1.0 Gwei
+	if maxGasPrice != "" {
+		if val, err := strconv.ParseFloat(maxGasPrice, 64); err == nil {
+			mGasPrice = val
+		}
+	}
+
+	dThreshold := 0.1 // default 10%
+	if devThreshold != "" {
+		if val, err := strconv.ParseFloat(devThreshold, 64); err == nil {
+			dThreshold = val
+		}
+	}
+
+	agentSvc.SetProtectionSettings(sSlippage, mGasPrice)
+	agentSvc.SetDeviationThreshold(dThreshold)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

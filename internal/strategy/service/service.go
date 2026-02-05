@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"remora/internal/coverage"
@@ -48,6 +49,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 			CurrentTick:  dist.CurrentTick,
 			SqrtPriceX96: sqrtPriceX96,
 			Segments:     nil,
+			Bins:         nil,
 			Metrics:      coverage.Metrics{},
 			ComputedAt:   time.Now().UTC(),
 		}, nil
@@ -63,6 +65,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 		CurrentTick:  dist.CurrentTick,
 		SqrtPriceX96: sqrtPriceX96,
 		Segments:     result.Segments,
+		Bins:         allocationBins,
 		Metrics:      result.Metrics,
 		ComputedAt:   time.Now().UTC(),
 	}, nil

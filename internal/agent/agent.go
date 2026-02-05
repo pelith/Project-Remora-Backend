@@ -38,6 +38,8 @@ type Service struct {
 	stateViewAddr common.Address
 
 	deviationThreshold float64
+	swapSlippageBps    int64
+	maxGasPriceGwei    float64
 }
 
 // New creates a new agent service.
@@ -57,7 +59,20 @@ func New(
 		logger:             logger,
 		stateViewAddr:      stateViewAddr,
 		deviationThreshold: 0.1,
+		swapSlippageBps:    50,  // default: 0.5%
+		maxGasPriceGwei:    1.0, // default: 1.0 Gwei (suitable for many L2s)
 	}
+}
+
+// SetProtectionSettings updates the protection settings for the service.
+func (s *Service) SetProtectionSettings(swapSlippageBps int64, maxGasPriceGwei float64) {
+	s.swapSlippageBps = swapSlippageBps
+	s.maxGasPriceGwei = maxGasPriceGwei
+}
+
+// SetDeviationThreshold updates the threshold for rebalance decision.
+func (s *Service) SetDeviationThreshold(threshold float64) {
+	s.deviationThreshold = threshold
 }
 
 // Run executes one round of rebalance check for all vaults.
@@ -192,6 +207,19 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		invested1.Add(invested1, amt1)
 	}
 
+	// Step 4.5: Deviation Check
+	// Decide if we really need to rebalance
+	deviation := s.calculateDeviation(positions, targetResult)
+	s.logger.Info("deviation calculated", slog.Float64("deviation", deviation), slog.Float64("threshold", s.deviationThreshold))
+
+	if deviation < s.deviationThreshold {
+		return RebalanceResult{
+			VaultAddress: vaultAddr,
+			Rebalanced:   false,
+			Reason:       "deviation_below_threshold",
+		}
+	}
+
 	// Sum total
 	total0 := new(big.Int).Add(idle0, invested0)
 	total1 := new(big.Int).Add(idle1, invested1)
@@ -222,7 +250,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	)
 
 	// Step 6: Execute rebalance
-	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult)
+	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult, targetResult.SqrtPriceX96)
 	if err != nil {
 		s.logger.Error("failed to execute rebalance", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "execution_error"}
