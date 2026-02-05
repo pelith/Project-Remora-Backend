@@ -221,12 +221,16 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		slog.Int("new_positions", len(allocationResult.Positions)),
 	)
 
-	// Step 6: Execute rebalance (TODO)
-	// err := s.executeRebalance(ctx, vaultClient, allocationResult)
+	// Step 6: Execute rebalance
+	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult)
+	if err != nil {
+		s.logger.Error("failed to execute rebalance", slog.Any("error", err))
+		return RebalanceResult{VaultAddress: vaultAddr, Reason: "execution_error"}
+	}
 
 	return RebalanceResult{
 		VaultAddress: vaultAddr,
-		Rebalanced:   true, // Mark as processed for now
-		Reason:       "allocation_computed",
+		Rebalanced:   true,
+		Reason:       "success",
 	}
 }
