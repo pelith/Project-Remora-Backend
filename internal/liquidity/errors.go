@@ -3,9 +3,6 @@ package liquidity
 import "errors"
 
 var (
-	// ErrInvalidPoolKey is returned when pool key is invalid.
-	ErrInvalidPoolKey = errors.New("invalid pool key")
-
 	// ErrInvalidBinSize is returned when bin size is invalid.
 	ErrInvalidBinSize = errors.New("bin size must be positive")
 

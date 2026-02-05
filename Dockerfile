@@ -1,4 +1,4 @@
-FROM golang:1.24.4 AS builder
+FROM golang:1.25.6 AS builder
 
 RUN mkdir /app
 WORKDIR /app
@@ -16,9 +16,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-ARG TARGETOS TARGETARCH
-ARG APP
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o main ./cmd/${APP}
+ARG TARGETOS
+ARG TARGETARCH
+ARG APP=api
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o main ./cmd/${APP}
 
 FROM scratch
 

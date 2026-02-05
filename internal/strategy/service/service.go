@@ -89,5 +89,6 @@ func toAllocationBins(liqBins []liquidity.Bin, currentTick int32) []coverage.Bin
 			IsCurrent: isCurrent,
 		}
 	}
+
 	return bins
 }

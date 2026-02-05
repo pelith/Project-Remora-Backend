@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/big"
 
@@ -10,11 +11,13 @@ import (
 
 	"remora/internal/allocation"
 	"remora/internal/coverage"
-	"remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 	"remora/internal/signer"
 	"remora/internal/strategy"
 	"remora/internal/vault"
 )
+
+const defaultDeviationThreshold = 0.1
 
 // VaultSource provides access to vault addresses.
 type VaultSource interface {
@@ -79,12 +82,13 @@ func (s *Service) SetDeviationThreshold(threshold float64) {
 func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 	addresses, err := s.vaultSource.GetVaultAddresses(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get vault addresses: %w", err)
 	}
 
-	s.logger.Info("starting rebalance run", slog.Int("vault_count", len(addresses)))
+	s.logger.InfoContext(ctx, "starting rebalance run", slog.Int("vault_count", len(addresses)))
 
 	var results []RebalanceResult
+
 	for _, addr := range addresses {
 		result := s.processVault(ctx, addr)
 		results = append(results, result)
@@ -95,6 +99,7 @@ func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 
 // processVault handles rebalance logic for a single vault.
 func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) RebalanceResult {
+
 	s.logger.Info("processing vault", slog.String("address", vaultAddr.Hex()))
 
 	// Step 1: Create vault client
@@ -116,8 +121,8 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	}
 
 	// Step 3: Compute target positions using strategy service
-	// Convert vault.PoolKey to liquidity.PoolKey
-	liqPoolKey := liquidity.PoolKey{
+	// Convert vault.PoolKey to poolid.PoolKey
+	liqPoolKey := poolid.PoolKey{
 		Currency0:   state.PoolKey.Currency0.Hex(),
 		Currency1:   state.PoolKey.Currency1.Hex(),
 		Fee:         uint32(state.PoolKey.Fee.Uint64()),         //nolint:gosec // fee fits in uint24
@@ -184,8 +189,8 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		// Fetch real liquidity from POSM/StateView
 		liquidity, err := s.getPositionLiquidity(ctx, state.Posm, state.PoolID, pos.TokenID)
 		if err != nil {
-			s.logger.Warn("failed to get position liquidity", 
-				slog.String("tokenID", pos.TokenID.String()), 
+			s.logger.Warn("failed to get position liquidity",
+				slog.String("tokenID", pos.TokenID.String()),
 				slog.Any("error", err))
 			continue
 		}

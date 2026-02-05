@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 	"remora/internal/liquidity/repository/contracts"
 )
 
@@ -66,7 +67,7 @@ func (r *Repository) Close() {
 var _ liquidity.Repository = (*Repository)(nil)
 
 // GetSlot0 retrieves current pool state (tick and sqrtPrice).
-func (r *Repository) GetSlot0(ctx context.Context, poolKey *liquidity.PoolKey) (*liquidity.Slot0, error) {
+func (r *Repository) GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*liquidity.Slot0, error) {
 	// Mock mode for testing
 	if r.contract == nil {
 		return &liquidity.Slot0{
@@ -75,7 +76,7 @@ func (r *Repository) GetSlot0(ctx context.Context, poolKey *liquidity.PoolKey) (
 		}, nil
 	}
 
-	poolID := liquidity.CalculatePoolID(poolKey)
+	poolID := poolid.CalculatePoolID(poolKey)
 
 	result, err := r.contract.GetSlot0(&bind.CallOpts{Context: ctx}, poolID)
 	if err != nil {
@@ -90,13 +91,13 @@ func (r *Repository) GetSlot0(ctx context.Context, poolKey *liquidity.PoolKey) (
 }
 
 // GetTickBitmap retrieves the tick bitmap for a word position.
-func (r *Repository) GetTickBitmap(ctx context.Context, poolKey *liquidity.PoolKey, wordPos int16) (*big.Int, error) {
+func (r *Repository) GetTickBitmap(ctx context.Context, poolKey *poolid.PoolKey, wordPos int16) (*big.Int, error) {
 	// Mock mode for testing
 	if r.contract == nil {
 		return big.NewInt(0), nil
 	}
 
-	poolID := liquidity.CalculatePoolID(poolKey)
+	poolID := poolid.CalculatePoolID(poolKey)
 
 	bitmap, err := r.contract.GetTickBitmap(&bind.CallOpts{Context: ctx}, poolID, wordPos)
 	if err != nil {
@@ -107,7 +108,7 @@ func (r *Repository) GetTickBitmap(ctx context.Context, poolKey *liquidity.PoolK
 }
 
 // GetTickInfo retrieves liquidity info for a specific tick.
-func (r *Repository) GetTickInfo(ctx context.Context, poolKey *liquidity.PoolKey, tick int32) (*liquidity.TickInfo, error) {
+func (r *Repository) GetTickInfo(ctx context.Context, poolKey *poolid.PoolKey, tick int32) (*liquidity.TickInfo, error) {
 	// Mock mode for testing
 	if r.contract == nil {
 		return &liquidity.TickInfo{
@@ -117,7 +118,7 @@ func (r *Repository) GetTickInfo(ctx context.Context, poolKey *liquidity.PoolKey
 		}, nil
 	}
 
-	poolID := liquidity.CalculatePoolID(poolKey)
+	poolID := poolid.CalculatePoolID(poolKey)
 
 	result, err := r.contract.GetTickInfo(&bind.CallOpts{Context: ctx}, poolID, big.NewInt(int64(tick)))
 	if err != nil {

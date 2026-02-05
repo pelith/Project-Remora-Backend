@@ -1,6 +1,8 @@
 package allocation
 
-import "math/big"
+import (
+	"math/big"
+)
 
 // UserFunds represents user's input funds
 type UserFunds struct {
@@ -33,4 +35,5 @@ type AllocationResult struct {
 	TotalAmount1  *big.Int // sum of all positions' amount1
 	SwapAmount    *big.Int // amount to swap (in source token units)
 	SwapToken0To1 bool     // true = swap token0 to token1, false = opposite
+
 }

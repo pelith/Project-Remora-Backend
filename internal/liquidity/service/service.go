@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 )
 
 // Service implements liquidity.Service.
@@ -68,7 +69,7 @@ func validateParams(params *liquidity.DistributionParams) error {
 		return liquidity.ErrInvalidTickRange
 	}
 
-	if err := liquidity.ValidatePoolKey(&params.PoolKey); err != nil {
+	if err := poolid.ValidatePoolKey(&params.PoolKey); err != nil {
 		return fmt.Errorf("validate pool key: %w", err)
 	}
 
@@ -76,7 +77,7 @@ func validateParams(params *liquidity.DistributionParams) error {
 }
 
 // getInitializedTicks retrieves all initialized ticks in the range [currentTick - tickRange, currentTick + tickRange].
-func (s *Service) getInitializedTicks(ctx context.Context, poolKey *liquidity.PoolKey, currentTick, tickRange, tickSpacing int32) ([]liquidity.TickInfo, error) {
+func (s *Service) getInitializedTicks(ctx context.Context, poolKey *poolid.PoolKey, currentTick, tickRange, tickSpacing int32) ([]liquidity.TickInfo, error) {
 	// Calculate the range of word positions to scan
 	tickLower := currentTick - tickRange
 	tickUpper := currentTick + tickRange

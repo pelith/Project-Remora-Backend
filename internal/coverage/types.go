@@ -1,6 +1,9 @@
 package coverage
 
-import "math/big"
+import (
+	"log/slog"
+	"math/big"
+)
 
 // Bin represents a single tick bin with liquidity data.
 // Uses blockchain-native types for seamless integration with Uniswap v4.
@@ -37,6 +40,7 @@ type Config struct {
 	Quantile     float64 // quantile value (used when WeightMode = "quantile")
 	LookAhead    int     // look-ahead steps for expansion (0 = use old algorithm)
 	Debug        bool    // enable debug output
+	Logger       *slog.Logger // logger for debug output
 }
 
 // DefaultConfig returns a default configuration.

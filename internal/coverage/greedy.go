@@ -1,13 +1,14 @@
 package coverage
 
 import (
+	"context"
 	"log/slog"
 	"math"
 	"sort"
 )
 
 // Run executes the greedy coverage algorithm (default).
-func Run(bins []Bin, cfg Config) Result {
+func Run(ctx context.Context, bins []Bin, cfg Config) Result {
 	if len(bins) == 0 {
 		return Result{}
 	}
@@ -16,13 +17,13 @@ func Run(bins []Bin, cfg Config) Result {
 	internalBins := toInternalBins(bins)
 
 	// Run LookAhead greedy algorithm
-	return runLookAhead(internalBins, cfg)
+	return runLookAhead(ctx, internalBins, cfg)
 }
 
 // runLookAhead implements the new look-ahead expansion algorithm.
 //
-//nolint:cyclop // algorithm complexity
-func runLookAhead(bins []internalBin, cfg Config) Result {
+//nolint:gocognit // algorithm complexity
+func runLookAhead(ctx context.Context, bins []internalBin, cfg Config) Result {
 	n := len(bins)
 	target := make([]float64, n)
 
@@ -41,6 +42,7 @@ func runLookAhead(bins []internalBin, cfg Config) Result {
 		// Find seed: bin with max remaining gap
 		seed := -1
 		maxGap := 0.0
+
 		for i, g := range remainingGaps {
 			if g > maxGap {
 				maxGap = g
@@ -48,8 +50,9 @@ func runLookAhead(bins []internalBin, cfg Config) Result {
 			}
 		}
 
-		if cfg.Debug {
-			slog.Debug("[DEBUG] Round", slog.Int("round", len(segments)+1), slog.Int("seed", seed), slog.Float64("maxGap", maxGap))
+		if cfg.Debug && cfg.Logger != nil {
+			cfg.Logger.DebugContext(ctx, "[DEBUG] Round",
+				slog.Int("round", len(segments)+1), slog.Int("seed", seed), slog.Float64("maxGap", maxGap))
 		}
 
 		if seed < 0 || maxGap <= 0 {
@@ -59,8 +62,9 @@ func runLookAhead(bins []internalBin, cfg Config) Result {
 		// Expand from seed using look-ahead
 		seg := expandWithLookAhead(remainingGaps, bins, seed, cfg, n)
 
-		if cfg.Debug {
-			slog.Debug("[DEBUG] Segment", slog.Int("l", seg.l), slog.Int("r", seg.r), slog.Float64("h", seg.h), slog.Float64("liq", seg.liquidityAdded))
+		if cfg.Debug && cfg.Logger != nil {
+			cfg.Logger.DebugContext(ctx, "[DEBUG] Segment",
+				slog.Int("l", seg.l), slog.Int("r", seg.r), slog.Float64("h", seg.h), slog.Float64("liq", seg.liquidityAdded))
 		}
 
 		if seg.h <= 0 {
@@ -102,6 +106,7 @@ func expandWithLookAhead(gaps []float64, bins []internalBin, seed int, cfg Confi
 		for steps := 1; steps <= cfg.LookAhead && l-steps >= 0; steps++ {
 			newL := l - steps
 			newH := calcH(gaps, newL, r, cfg.Quantile)
+
 			newScore := calcNetScore(gaps, bins, newL, r, newH, cfg.Beta, cfg.Lambda, cfg.CurrentBonus, totalBins, cfg.N)
 			if newScore > bestScore {
 				bestScore = newScore
@@ -114,6 +119,7 @@ func expandWithLookAhead(gaps []float64, bins []internalBin, seed int, cfg Confi
 		for steps := 1; steps <= cfg.LookAhead && r+steps < n; steps++ {
 			newR := r + steps
 			newH := calcH(gaps, l, newR, cfg.Quantile)
+
 			newScore := calcNetScore(gaps, bins, l, newR, newH, cfg.Beta, cfg.Lambda, cfg.CurrentBonus, totalBins, cfg.N)
 			if newScore > bestScore {
 				bestScore = newScore
@@ -145,9 +151,11 @@ func calcH(gaps []float64, l, r int, q float64) float64 {
 			segmentGaps = append(segmentGaps, gaps[i])
 		}
 	}
+
 	if len(segmentGaps) == 0 {
 		return 0
 	}
+
 	return quantile(segmentGaps, q)
 }
 
@@ -158,6 +166,7 @@ func calcH(gaps []float64, l, r int, q float64) float64 {
 // net_score = score - loss, with currentBonus if segment contains current price.
 func calcNetScore(gaps []float64, bins []internalBin, l, r int, h, beta, lambda, currentBonus float64, totalBins, k int) float64 {
 	var captured, underCover, waste, sumGap float64
+
 	numBins := float64(r - l + 1)
 	containsCurrent := false
 
@@ -165,6 +174,7 @@ func calcNetScore(gaps []float64, bins []internalBin, l, r int, h, beta, lambda,
 		captured += math.Min(gaps[i], h)     // gap captured by this segment
 		underCover += math.Max(0, gaps[i]-h) // gap not covered
 		waste += math.Max(0, h-gaps[i])      // liquidity wasted
+
 		sumGap += gaps[i]
 		if bins[i].isCurrent {
 			containsCurrent = true
@@ -184,6 +194,7 @@ func calcNetScore(gaps []float64, bins []internalBin, l, r int, h, beta, lambda,
 	}
 
 	loss := underCover + beta*waste + widthPenalty
+
 	return captured - loss
 }
 
@@ -197,8 +208,10 @@ func enforceMinLiquidity(segments []internalSegment, n int) []internalSegment {
 
 	// Find max total liquidity (amount)
 	maxAmount := 0.0
+
 	for _, seg := range segments {
 		width := float64(seg.r - seg.l + 1)
+
 		amount := seg.liquidityAdded * width
 		if amount > maxAmount {
 			maxAmount = amount
@@ -213,6 +226,7 @@ func enforceMinLiquidity(segments []internalSegment, n int) []internalSegment {
 
 	for _, seg := range segments {
 		width := float64(seg.r - seg.l + 1)
+
 		amount := seg.liquidityAdded * width
 
 		if amount >= threshold {
@@ -236,6 +250,7 @@ func quantile(data []float64, q float64) float64 {
 	if q <= 0 {
 		return sorted[0]
 	}
+
 	if q >= 1 {
 		return sorted[len(sorted)-1]
 	}
@@ -250,5 +265,6 @@ func quantile(data []float64, q float64) float64 {
 
 	// Linear interpolation
 	weight := index - float64(lower)
+
 	return sorted[lower]*(1-weight) + sorted[upper]*weight
 }

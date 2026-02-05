@@ -1,9 +1,24 @@
-package liquidity
+package poolid
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+// ErrInvalidPoolKey is returned when pool key is invalid.
+var ErrInvalidPoolKey = errors.New("invalid pool key")
+
+// PoolKey identifies a Uniswap v4 pool.
+// Must have currency0 < currency1 (by address).
+type PoolKey struct {
+	Currency0   string `json:"currency0"`
+	Currency1   string `json:"currency1"`
+	Fee         uint32 `json:"fee"`
+	TickSpacing int32  `json:"tickSpacing"`
+	Hooks       string `json:"hooks"`
+}
 
 // ValidatePoolKey checks that currency0 < currency1 (required by Uniswap v4).
 func ValidatePoolKey(key *PoolKey) error {
@@ -15,16 +30,6 @@ func ValidatePoolKey(key *PoolKey) error {
 	}
 
 	return nil
-}
-
-// PoolKey identifies a Uniswap v4 pool.
-// Must have currency0 < currency1 (by address).
-type PoolKey struct {
-	Currency0   string `json:"currency0"`
-	Currency1   string `json:"currency1"`
-	Fee         uint32 `json:"fee"`
-	TickSpacing int32  `json:"tickSpacing"`
-	Hooks       string `json:"hooks"`
 }
 
 // CalculatePoolID computes the PoolId from a PoolKey per Uniswap v4 spec.

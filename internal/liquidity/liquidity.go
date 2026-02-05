@@ -5,6 +5,8 @@ package liquidity
 import (
 	"context"
 	"math/big"
+
+	"remora/internal/liquidity/poolid"
 )
 
 // Slot0 contains the current state of the pool.
@@ -31,9 +33,9 @@ type Bin struct {
 
 // DistributionParams contains parameters for liquidity distribution query.
 type DistributionParams struct {
-	PoolKey      PoolKey `json:"poolKey"`      // Uniswap v4 pool key (PoolId is computed from this)
-	BinSizeTicks int32   `json:"binSizeTicks"` // Size of each bin in ticks
-	TickRange    int32   `json:"tickRange"`    // Range of ticks to scan (±tickRange from current tick)
+	PoolKey      poolid.PoolKey `json:"poolKey"`      // Uniswap v4 pool key (PoolId is computed from this)
+	BinSizeTicks int32          `json:"binSizeTicks"` // Size of each bin in ticks
+	TickRange    int32          `json:"tickRange"`    // Range of ticks to scan (±tickRange from current tick)
 }
 
 // Distribution contains the liquidity distribution result.
@@ -53,11 +55,11 @@ type Service interface {
 // Repository abstracts blockchain interaction for liquidity data.
 type Repository interface {
 	// GetSlot0 retrieves current pool state (tick and sqrtPrice).
-	GetSlot0(ctx context.Context, poolKey *PoolKey) (*Slot0, error)
+	GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*Slot0, error)
 
 	// GetTickBitmap retrieves the tick bitmap for a word position.
-	GetTickBitmap(ctx context.Context, poolKey *PoolKey, wordPos int16) (*big.Int, error)
+	GetTickBitmap(ctx context.Context, poolKey *poolid.PoolKey, wordPos int16) (*big.Int, error)
 
 	// GetTickInfo retrieves liquidity info for a specific tick.
-	GetTickInfo(ctx context.Context, poolKey *PoolKey, tick int32) (*TickInfo, error)
+	GetTickInfo(ctx context.Context, poolKey *poolid.PoolKey, tick int32) (*TickInfo, error)
 }

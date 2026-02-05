@@ -34,6 +34,7 @@ func main() {
 		logger.Error("failed to create signer", slog.Any("error", err))
 		os.Exit(1)
 	}
+
 	logger.Info("signer initialized", slog.String("address", sgn.Address().Hex()))
 
 	// Initialize eth client
@@ -48,7 +49,9 @@ func main() {
 		logger.Error("failed to connect to RPC", slog.Any("error", err))
 		os.Exit(1)
 	}
+
 	defer ethClient.Close()
+
 	logger.Info("connected to RPC", slog.String("url", rpcURL))
 
 	// Initialize vault source (mock for now)
@@ -98,7 +101,15 @@ func main() {
 	agentSvc.SetDeviationThreshold(dThreshold)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	exitCode := 0
+
+	defer func() {
+		cancel()
+
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	}()
 
 	// Setup cron scheduler
 	schedule := parseRebalanceSchedule()
@@ -109,7 +120,10 @@ func main() {
 	})
 	if err != nil {
 		logger.Error("invalid cron schedule", slog.Any("error", err))
-		os.Exit(1)
+
+		exitCode = 1
+
+		return
 	}
 
 	c.Start()
@@ -153,5 +167,6 @@ func parseRebalanceSchedule() string {
 	if schedule == "" {
 		return "*/5 * * * *" // default: every 5 minutes
 	}
+
 	return schedule
 }
