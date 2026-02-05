@@ -30,11 +30,12 @@ type RebalanceResult struct {
 
 // Service is the main agent orchestrator.
 type Service struct {
-	vaultSource VaultSource
-	strategySvc strategy.Service
-	signer      *signer.Signer
-	ethClient   *ethclient.Client
-	logger      *slog.Logger
+	vaultSource   VaultSource
+	strategySvc   strategy.Service
+	signer        *signer.Signer
+	ethClient     *ethclient.Client
+	logger        *slog.Logger
+	stateViewAddr common.Address
 
 	deviationThreshold float64
 }
@@ -46,6 +47,7 @@ func New(
 	signer *signer.Signer,
 	ethClient *ethclient.Client,
 	logger *slog.Logger,
+	stateViewAddr common.Address,
 ) *Service {
 	return &Service{
 		vaultSource:        vaultSource,
@@ -53,6 +55,7 @@ func New(
 		signer:             signer,
 		ethClient:          ethClient,
 		logger:             logger,
+		stateViewAddr:      stateViewAddr,
 		deviationThreshold: 0.1,
 	}
 }
@@ -163,6 +166,16 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	// Note: accurate value requires getting the real positions info including uncollected fees,
 	// but here we just estimate principal from liquidity.
 	for _, pos := range positions {
+		// Fetch real liquidity from POSM/StateView
+		liquidity, err := s.getPositionLiquidity(ctx, state.Posm, state.PoolID, pos.TokenID)
+		if err != nil {
+			s.logger.Warn("failed to get position liquidity", 
+				slog.String("tokenID", pos.TokenID.String()), 
+				slog.Any("error", err))
+			continue
+		}
+		pos.Liquidity = liquidity
+
 		if pos.Liquidity == nil || pos.Liquidity.Sign() == 0 {
 			continue
 		}
@@ -216,15 +229,4 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		Rebalanced:   true, // Mark as processed for now
 		Reason:       "allocation_computed",
 	}
-}
-
-// Helper stubs
-func (s *Service) getTokenDecimals(ctx context.Context, token common.Address) (uint8, error) {
-	// TODO: Implement ERC20 call
-	return 18, nil
-}
-
-func (s *Service) getTokenBalance(ctx context.Context, token common.Address, owner common.Address) (*big.Int, error) {
-	// TODO: Implement ERC20 call
-	return big.NewInt(0), nil
 }

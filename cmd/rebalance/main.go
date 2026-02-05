@@ -57,12 +57,14 @@ func main() {
 	})
 
 	// Initialize agent service
+	stateViewAddr := common.HexToAddress(os.Getenv("STATEVIEW_CONTRACT_ADDR"))
 	agentSvc := agent.New(
 		vaultSource,
 		nil, // TODO: strategySvc
 		sgn,
 		ethClient,
 		logger,
+		stateViewAddr,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())

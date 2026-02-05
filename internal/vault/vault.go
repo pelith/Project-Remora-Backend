@@ -29,6 +29,7 @@ type VaultState struct {
 	MaxPositionsK    *big.Int
 	PoolKey          PoolKey
 	PoolID           [32]byte
+	Posm             common.Address
 	PositionsLength  *big.Int
 }
 
@@ -121,6 +122,11 @@ func (c *Client) GetState(ctx context.Context) (*VaultState, error) {
 		return nil, err
 	}
 
+	posm, err := c.contract.Posm(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	positionsLength, err := c.contract.PositionsLength(opts)
 	if err != nil {
 		return nil, err
@@ -135,6 +141,7 @@ func (c *Client) GetState(ctx context.Context) (*VaultState, error) {
 		MaxPositionsK:    maxPositionsK,
 		PoolKey:          poolKey,
 		PoolID:           poolID,
+		Posm:             posm,
 		PositionsLength:  positionsLength,
 	}, nil
 }
