@@ -1,4 +1,4 @@
-package allocation
+package coverage
 
 import (
 	"math"

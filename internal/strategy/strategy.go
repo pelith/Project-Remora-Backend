@@ -5,10 +5,9 @@ package strategy
 import (
 	"context"
 	"math/big"
-	"time"
-
-	"remora/internal/allocation"
+	"remora/internal/coverage"
 	"remora/internal/liquidity/poolid"
+	"time"
 )
 
 // Service defines the strategy orchestration use cases.
@@ -22,15 +21,17 @@ type ComputeParams struct {
 	PoolKey      poolid.PoolKey    // Uniswap v4 pool key
 	BinSizeTicks int32             // Size of each bin in ticks
 	TickRange    int32             // Range of ticks to scan (±tickRange from current tick)
-	AlgoConfig   allocation.Config // Algorithm configuration
+	AlgoConfig   coverage.Config // Algorithm configuration
 }
 
 // ComputeResult contains the computed target positions.
 type ComputeResult struct {
-	CurrentTick int32                // Current pool tick
-	Segments    []allocation.Segment // Target LP segments
-	Metrics     allocation.Metrics   // Coverage metrics
-	ComputedAt  time.Time            // Timestamp when computation was performed
+	CurrentTick  int32              // Current pool tick
+	SqrtPriceX96 *big.Int           // Current pool sqrtPriceX96
+	Segments     []coverage.Segment // Target LP segments
+	Bins         []coverage.Bin    // Original market liquidity bins
+	Metrics      coverage.Metrics   // Coverage metrics
+	ComputedAt   time.Time          // Timestamp when computation was performed
 }
 
 // Position represents an existing LP position (for future use with gap calculation).

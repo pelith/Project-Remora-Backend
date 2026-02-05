@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
-	"remora/internal/allocation"
+	"remora/internal/coverage"
 	"remora/internal/liquidity"
 	"remora/internal/strategy"
 )
@@ -41,37 +42,47 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 	allocationBins := toAllocationBins(dist.Bins, dist.CurrentTick)
 
 	if len(allocationBins) == 0 {
+		sqrtPriceX96 := new(big.Int)
+		sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
+
 		return &strategy.ComputeResult{
-			CurrentTick: dist.CurrentTick,
-			Segments:    nil,
-			Metrics:     allocation.Metrics{},
-			ComputedAt:  time.Now().UTC(),
+			CurrentTick:  dist.CurrentTick,
+			SqrtPriceX96: sqrtPriceX96,
+			Segments:     nil,
+			Bins:         nil,
+			Metrics:      coverage.Metrics{},
+			ComputedAt:   time.Now().UTC(),
 		}, nil
 	}
 
 	// Step 3: Run coverage algorithm
-	result := allocation.Run(ctx, allocationBins, params.AlgoConfig)
+	result := coverage.Run(ctx, allocationBins, params.AlgoConfig)
+
+	sqrtPriceX96 := new(big.Int)
+	sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
 
 	return &strategy.ComputeResult{
-		CurrentTick: dist.CurrentTick,
-		Segments:    result.Segments,
-		Metrics:     result.Metrics,
-		ComputedAt:  time.Now().UTC(),
+		CurrentTick:  dist.CurrentTick,
+		SqrtPriceX96: sqrtPriceX96,
+		Segments:     result.Segments,
+		Bins:         allocationBins,
+		Metrics:      result.Metrics,
+		ComputedAt:   time.Now().UTC(),
 	}, nil
 }
 
-// toAllocationBins converts liquidity.Bin slice to allocation.Bin slice.
-func toAllocationBins(liqBins []liquidity.Bin, currentTick int32) []allocation.Bin {
+// toAllocationBins converts liquidity.Bin slice to coverage.Bin slice.
+func toAllocationBins(liqBins []liquidity.Bin, currentTick int32) []coverage.Bin {
 	if len(liqBins) == 0 {
 		return nil
 	}
 
-	bins := make([]allocation.Bin, len(liqBins))
+	bins := make([]coverage.Bin, len(liqBins))
 	for i, b := range liqBins {
 		// Determine if this bin contains the current tick
 		isCurrent := currentTick >= b.TickLower && currentTick < b.TickUpper
 
-		bins[i] = allocation.Bin{
+		bins[i] = coverage.Bin{
 			TickLower: b.TickLower,
 			TickUpper: b.TickUpper,
 			Liquidity: b.ActiveLiquidity,

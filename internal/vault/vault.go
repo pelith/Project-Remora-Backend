@@ -16,6 +16,7 @@ type Position struct {
 	TokenID   *big.Int
 	TickLower int32
 	TickUpper int32
+	Liquidity *big.Int
 }
 
 // State represents the current state of a vault.
@@ -28,6 +29,7 @@ type State struct {
 	MaxPositionsK    *big.Int
 	PoolKey          PoolKey
 	PoolID           [32]byte
+	Posm             common.Address
 	PositionsLength  *big.Int
 }
 
@@ -121,6 +123,11 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 		return nil, err
 	}
 
+	posm, err := c.contract.Posm(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	positionsLength, err := c.contract.PositionsLength(opts)
 	if err != nil {
 		return nil, err
@@ -135,6 +142,7 @@ func (c *Client) GetState(ctx context.Context) (*State, error) {
 		MaxPositionsK:    maxPositionsK,
 		PoolKey:          poolKey,
 		PoolID:           poolID,
+		Posm:             posm,
 		PositionsLength:  positionsLength,
 	}, nil
 }
@@ -171,6 +179,7 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 			TokenID:   tokenID,
 			TickLower: int32(tickLower.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
 			TickUpper: int32(tickUpper.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
+			Liquidity: big.NewInt(0),            // TODO: Fetch liquidity from PositionManager (posm)
 		})
 	}
 
