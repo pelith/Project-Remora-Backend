@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"time"
 
-	"remora/internal/allocation"
+	"remora/internal/coverage"
 	"remora/internal/liquidity"
 )
 
@@ -22,14 +22,14 @@ type ComputeParams struct {
 	PoolKey      liquidity.PoolKey // Uniswap v4 pool key
 	BinSizeTicks int32             // Size of each bin in ticks
 	TickRange    int32             // Range of ticks to scan (±tickRange from current tick)
-	AlgoConfig   allocation.Config // Algorithm configuration
+	AlgoConfig   coverage.Config // Algorithm configuration
 }
 
 // ComputeResult contains the computed target positions.
 type ComputeResult struct {
 	CurrentTick int32                // Current pool tick
-	Segments    []allocation.Segment // Target LP segments
-	Metrics     allocation.Metrics   // Coverage metrics
+	Segments    []coverage.Segment // Target LP segments
+	Metrics     coverage.Metrics   // Coverage metrics
 	ComputedAt  time.Time            // Timestamp when computation was performed
 }
 
