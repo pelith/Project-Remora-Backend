@@ -18,10 +18,12 @@ type Service interface {
 
 // ComputeParams contains parameters for computing target positions.
 type ComputeParams struct {
-	PoolKey      poolid.PoolKey    // Uniswap v4 pool key
-	BinSizeTicks int32             // Size of each bin in ticks
-	TickRange    int32             // Range of ticks to scan (±tickRange from current tick)
-	AlgoConfig   coverage.Config // Algorithm configuration
+	PoolKey          poolid.PoolKey  // Uniswap v4 pool key
+	BinSizeTicks     int32           // Size of each bin in ticks
+	TickRange        int32           // Range of ticks to scan (±tickRange from current tick)
+	AlgoConfig       coverage.Config // Algorithm configuration
+	AllowedTickLower int32           // Vault's allowed lower tick bound
+	AllowedTickUpper int32           // Vault's allowed upper tick bound
 }
 
 // ComputeResult contains the computed target positions.

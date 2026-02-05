@@ -38,8 +38,8 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 		return nil, fmt.Errorf("get distribution: %w", err)
 	}
 
-	// Step 2: Convert liquidity bins to allocation bins
-	allocationBins := toAllocationBins(dist.Bins, dist.CurrentTick)
+	// Step 2: Convert liquidity bins to allocation bins (filtered by vault's allowed tick range)
+	allocationBins := toAllocationBins(dist.Bins, dist.CurrentTick, params.AllowedTickLower, params.AllowedTickUpper)
 
 	if len(allocationBins) == 0 {
 		sqrtPriceX96 := new(big.Int)
@@ -71,23 +71,27 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 	}, nil
 }
 
-// toAllocationBins converts liquidity.Bin slice to coverage.Bin slice.
-func toAllocationBins(liqBins []liquidity.Bin, currentTick int32) []coverage.Bin {
+// toAllocationBins converts liquidity.Bin slice to coverage.Bin slice,
+// filtering out bins outside the vault's allowed tick range.
+func toAllocationBins(liqBins []liquidity.Bin, currentTick int32, allowedLower, allowedUpper int32) []coverage.Bin {
 	if len(liqBins) == 0 {
 		return nil
 	}
 
-	bins := make([]coverage.Bin, len(liqBins))
-	for i, b := range liqBins {
-		// Determine if this bin contains the current tick
+	bins := make([]coverage.Bin, 0, len(liqBins))
+	for _, b := range liqBins {
+		if b.TickLower < allowedLower || b.TickUpper > allowedUpper {
+			continue
+		}
+
 		isCurrent := currentTick >= b.TickLower && currentTick < b.TickUpper
 
-		bins[i] = coverage.Bin{
+		bins = append(bins, coverage.Bin{
 			TickLower: b.TickLower,
 			TickUpper: b.TickUpper,
 			Liquidity: b.ActiveLiquidity,
 			IsCurrent: isCurrent,
-		}
+		})
 	}
 
 	return bins
