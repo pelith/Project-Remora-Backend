@@ -27,10 +27,11 @@ type ComputeParams struct {
 
 // ComputeResult contains the computed target positions.
 type ComputeResult struct {
-	CurrentTick int32                // Current pool tick
-	Segments    []coverage.Segment // Target LP segments
-	Metrics     coverage.Metrics   // Coverage metrics
-	ComputedAt  time.Time            // Timestamp when computation was performed
+	CurrentTick  int32              // Current pool tick
+	SqrtPriceX96 *big.Int           // Current pool sqrtPriceX96
+	Segments     []coverage.Segment // Target LP segments
+	Metrics      coverage.Metrics   // Coverage metrics
+	ComputedAt   time.Time          // Timestamp when computation was performed
 }
 
 // Position represents an existing LP position (for future use with gap calculation).

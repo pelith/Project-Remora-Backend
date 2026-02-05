@@ -41,22 +41,30 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 	allocationBins := toAllocationBins(dist.Bins, dist.CurrentTick)
 
 	if len(allocationBins) == 0 {
+		sqrtPriceX96 := new(big.Int)
+		sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
+
 		return &strategy.ComputeResult{
-			CurrentTick: dist.CurrentTick,
-			Segments:    nil,
-			Metrics:     coverage.Metrics{},
-			ComputedAt:  time.Now().UTC(),
+			CurrentTick:  dist.CurrentTick,
+			SqrtPriceX96: sqrtPriceX96,
+			Segments:     nil,
+			Metrics:      coverage.Metrics{},
+			ComputedAt:   time.Now().UTC(),
 		}, nil
 	}
 
 	// Step 3: Run coverage algorithm
 	result := coverage.Run(allocationBins, params.AlgoConfig)
 
+	sqrtPriceX96 := new(big.Int)
+	sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
+
 	return &strategy.ComputeResult{
-		CurrentTick: dist.CurrentTick,
-		Segments:    result.Segments,
-		Metrics:     result.Metrics,
-		ComputedAt:  time.Now().UTC(),
+		CurrentTick:  dist.CurrentTick,
+		SqrtPriceX96: sqrtPriceX96,
+		Segments:     result.Segments,
+		Metrics:      result.Metrics,
+		ComputedAt:   time.Now().UTC(),
 	}, nil
 }
 
