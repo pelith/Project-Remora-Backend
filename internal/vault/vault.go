@@ -18,8 +18,8 @@ type Position struct {
 	TickUpper int32
 }
 
-// VaultState represents the current state of a vault.
-type VaultState struct {
+// State represents the current state of a vault.
+type State struct {
 	Agent            common.Address
 	AgentPaused      bool
 	SwapAllowed      bool
@@ -37,7 +37,7 @@ type Vault interface {
 	Address() common.Address
 
 	// GetState returns the current vault state.
-	GetState(ctx context.Context) (*VaultState, error)
+	GetState(ctx context.Context) (*State, error)
 
 	// GetPositions returns all managed positions.
 	GetPositions(ctx context.Context) ([]Position, error)
@@ -64,6 +64,7 @@ func NewClient(address common.Address, backend bind.ContractBackend, auth *bind.
 	if err != nil {
 		return nil, err
 	}
+
 	return &Client{
 		address:  address,
 		contract: contract,
@@ -77,7 +78,7 @@ func (c *Client) Address() common.Address {
 }
 
 // GetState returns the current vault state.
-func (c *Client) GetState(ctx context.Context) (*VaultState, error) {
+func (c *Client) GetState(ctx context.Context) (*State, error) {
 	opts := &bind.CallOpts{Context: ctx}
 
 	agent, err := c.contract.Agent(opts)
@@ -125,7 +126,7 @@ func (c *Client) GetState(ctx context.Context) (*VaultState, error) {
 		return nil, err
 	}
 
-	return &VaultState{
+	return &State{
 		Agent:            agent,
 		AgentPaused:      agentPaused,
 		SwapAllowed:      swapAllowed,
@@ -149,6 +150,7 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 
 	n := length.Int64()
 	positions := make([]Position, 0, n)
+
 	for i := range n {
 		tokenID, err := c.contract.PositionIds(opts, big.NewInt(i))
 		if err != nil {
@@ -216,8 +218,10 @@ func (c *Client) authWithContext(ctx context.Context) *bind.TransactOpts {
 	if c.auth == nil {
 		return nil
 	}
+
 	auth := *c.auth
 	auth.Context = ctx
+
 	return &auth
 }
 

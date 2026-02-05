@@ -15,6 +15,7 @@ func BuildRebalanceAllocations(
 	}
 
 	sumWeight := decimal.Zero
+
 	for _, r := range ranges {
 		if r.TickLower >= r.TickUpper {
 			return nil, ErrInvalidTickRange

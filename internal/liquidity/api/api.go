@@ -9,6 +9,7 @@ import (
 
 	"remora/internal/httpwrap"
 	"remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 )
 
 // AddRoutes registers liquidity-related routes on the provided router.
@@ -72,7 +73,7 @@ func getDistribution(svc liquidity.Service) func(*http.Request) (*httpwrap.Respo
 		ctx := r.Context()
 
 		params := &liquidity.DistributionParams{
-			PoolKey: liquidity.PoolKey{
+			PoolKey: poolid.PoolKey{
 				Currency0:   req.PoolKey.Currency0,
 				Currency1:   req.PoolKey.Currency1,
 				Fee:         req.PoolKey.Fee,

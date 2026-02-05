@@ -13,7 +13,9 @@ import (
 	context "context"
 	big "math/big"
 	reflect "reflect"
+
 	liquidity "remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -42,7 +44,7 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // GetSlot0 mocks base method.
-func (m *MockRepository) GetSlot0(arg0 context.Context, arg1 *liquidity.PoolKey) (*liquidity.Slot0, error) {
+func (m *MockRepository) GetSlot0(arg0 context.Context, arg1 *poolid.PoolKey) (*liquidity.Slot0, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSlot0", arg0, arg1)
 	ret0, _ := ret[0].(*liquidity.Slot0)
@@ -57,7 +59,7 @@ func (mr *MockRepositoryMockRecorder) GetSlot0(arg0, arg1 any) *gomock.Call {
 }
 
 // GetTickBitmap mocks base method.
-func (m *MockRepository) GetTickBitmap(arg0 context.Context, arg1 *liquidity.PoolKey, arg2 int16) (*big.Int, error) {
+func (m *MockRepository) GetTickBitmap(arg0 context.Context, arg1 *poolid.PoolKey, arg2 int16) (*big.Int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTickBitmap", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*big.Int)
@@ -72,7 +74,7 @@ func (mr *MockRepositoryMockRecorder) GetTickBitmap(arg0, arg1, arg2 any) *gomoc
 }
 
 // GetTickInfo mocks base method.
-func (m *MockRepository) GetTickInfo(arg0 context.Context, arg1 *liquidity.PoolKey, arg2 int32) (*liquidity.TickInfo, error) {
+func (m *MockRepository) GetTickInfo(arg0 context.Context, arg1 *poolid.PoolKey, arg2 int32) (*liquidity.TickInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTickInfo", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*liquidity.TickInfo)

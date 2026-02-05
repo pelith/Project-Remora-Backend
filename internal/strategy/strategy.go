@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"remora/internal/allocation"
-	"remora/internal/liquidity"
+	"remora/internal/liquidity/poolid"
 )
 
 // Service defines the strategy orchestration use cases.
@@ -19,7 +19,7 @@ type Service interface {
 
 // ComputeParams contains parameters for computing target positions.
 type ComputeParams struct {
-	PoolKey      liquidity.PoolKey // Uniswap v4 pool key
+	PoolKey      poolid.PoolKey    // Uniswap v4 pool key
 	BinSizeTicks int32             // Size of each bin in ticks
 	TickRange    int32             // Range of ticks to scan (±tickRange from current tick)
 	AlgoConfig   allocation.Config // Algorithm configuration

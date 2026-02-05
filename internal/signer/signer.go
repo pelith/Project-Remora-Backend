@@ -12,11 +12,36 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+const decimalBase = 10
+
 // Signer holds the private key and provides transaction signing capabilities.
 type Signer struct {
 	privateKey *ecdsa.PrivateKey
 	address    common.Address
 	chainID    *big.Int
+}
+
+// NewFromEnv creates a Signer from environment variables.
+// Reads AGENT_PRIVATE_KEY and CHAIN_ID from environment.
+func NewFromEnv() (*Signer, error) {
+	privateKey := os.Getenv("AGENT_PRIVATE_KEY")
+	if privateKey == "" {
+		return nil, ErrAgentPrivateKeyNotSet
+	}
+
+	privateKey = strings.TrimPrefix(privateKey, "0x")
+
+	chainIDStr := os.Getenv("CHAIN_ID")
+	if chainIDStr == "" {
+		return nil, ErrChainIDNotSet
+	}
+
+	chainID, ok := new(big.Int).SetString(chainIDStr, decimalBase)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidChainID, chainIDStr)
+	}
+
+	return New(privateKey, chainID)
 }
 
 // New creates a new Signer from a hex-encoded private key.
@@ -28,9 +53,10 @@ func New(privateKeyHex string, chainID *big.Int) (*Signer, error) {
 	}
 
 	publicKey := privateKey.Public()
+
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast public key to ECDSA")
+		return nil, ErrPublicKeyNotECDSA
 	}
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
@@ -58,27 +84,6 @@ func (s *Signer) TransactOpts() (*bind.TransactOpts, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create transactor: %w", err)
 	}
+
 	return auth, nil
-}
-
-// NewFromEnv creates a Signer from environment variables.
-// Reads AGENT_PRIVATE_KEY and CHAIN_ID from environment.
-func NewFromEnv() (*Signer, error) {
-	privateKey := os.Getenv("AGENT_PRIVATE_KEY")
-	if privateKey == "" {
-		return nil, fmt.Errorf("AGENT_PRIVATE_KEY not set")
-	}
-	privateKey = strings.TrimPrefix(privateKey, "0x")
-
-	chainIDStr := os.Getenv("CHAIN_ID")
-	if chainIDStr == "" {
-		return nil, fmt.Errorf("CHAIN_ID not set")
-	}
-
-	chainID, ok := new(big.Int).SetString(chainIDStr, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid CHAIN_ID: %s", chainIDStr)
-	}
-
-	return New(privateKey, chainID)
 }

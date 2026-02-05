@@ -30,6 +30,7 @@ func toInternalBins(bins []Bin) []internalBin {
 		if b.Liquidity != nil {
 			liq, _ = new(big.Float).SetInt(b.Liquidity).Float64()
 		}
+
 		result[i] = internalBin{
 			tickLower:  int(b.TickLower),
 			tickUpper:  int(b.TickUpper),
@@ -39,6 +40,7 @@ func toInternalBins(bins []Bin) []internalBin {
 			isCurrent:  b.IsCurrent,
 		}
 	}
+
 	return result
 }
 

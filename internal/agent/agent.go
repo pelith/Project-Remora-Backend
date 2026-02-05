@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,6 +12,8 @@ import (
 	"remora/internal/strategy"
 	"remora/internal/vault"
 )
+
+const defaultDeviationThreshold = 0.1
 
 // VaultSource provides access to vault addresses.
 type VaultSource interface {
@@ -49,7 +52,7 @@ func New(
 		signer:             signer,
 		ethClient:          ethClient,
 		logger:             logger,
-		deviationThreshold: 0.1,
+		deviationThreshold: defaultDeviationThreshold,
 	}
 }
 
@@ -57,12 +60,13 @@ func New(
 func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 	addresses, err := s.vaultSource.GetVaultAddresses(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get vault addresses: %w", err)
 	}
 
-	s.logger.Info("starting rebalance run", slog.Int("vault_count", len(addresses)))
+	s.logger.InfoContext(ctx, "starting rebalance run", slog.Int("vault_count", len(addresses)))
 
 	var results []RebalanceResult
+
 	for _, addr := range addresses {
 		result := s.processVault(ctx, addr)
 		results = append(results, result)
@@ -72,8 +76,8 @@ func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 }
 
 // processVault handles rebalance logic for a single vault.
-func (s *Service) processVault(_ context.Context, vaultAddr common.Address) RebalanceResult {
-	s.logger.Info("processing vault", slog.String("address", vaultAddr.Hex()))
+func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) RebalanceResult {
+	s.logger.InfoContext(ctx, "processing vault", slog.String("address", vaultAddr.Hex()))
 
 	// Step 1: Create vault client
 	auth, err := s.signer.TransactOpts()

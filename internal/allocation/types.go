@@ -1,6 +1,9 @@
 package allocation
 
-import "math/big"
+import (
+	"log/slog"
+	"math/big"
+)
 
 // Bin represents a single tick bin with liquidity data.
 // Uses blockchain-native types for seamless integration with Uniswap v4.
@@ -25,24 +28,25 @@ type Segment struct {
 
 // Config holds the algorithm configuration.
 type Config struct {
-	Algo         string  // algorithm: greedy, dp
-	N            int     // max number of segments (positions)
-	MinWidth     int     // minimum width in number of bins
-	MaxWidth     int     // maximum width in number of bins (0 = unlimited)
-	Lambda       float64 // width penalty coefficient
-	Beta         float64 // waste penalty coefficient (h > gap)
-	CurrentBonus float64 // score bonus for segments containing current price (e.g., 0.2 = +20%)
-	EnableMinLiq bool    // enable min liquidity filter (threshold = max / 2^N)
-	WeightMode   string  // "avg" or "quantile"
-	Quantile     float64 // quantile value (used when WeightMode = "quantile")
-	LookAhead    int     // look-ahead steps for expansion (0 = use old algorithm)
-	Debug        bool    // enable debug output
+	Algo         string       // algorithm: greedy, dp
+	N            int          // max number of segments (positions)
+	MinWidth     int          // minimum width in number of bins
+	MaxWidth     int          // maximum width in number of bins (0 = unlimited)
+	Lambda       float64      // width penalty coefficient
+	Beta         float64      // waste penalty coefficient (h > gap)
+	CurrentBonus float64      // score bonus for segments containing current price (e.g., 0.2 = +20%)
+	EnableMinLiq bool         // enable min liquidity filter (threshold = max / 2^N)
+	WeightMode   string       // "avg" or "quantile"
+	Quantile     float64      // quantile value (used when WeightMode = "quantile")
+	LookAhead    int          // look-ahead steps for expansion (0 = use old algorithm)
+	Debug        bool         // enable debug output
+	Logger       *slog.Logger // optional logger for debug output when Debug is true
 }
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
 	return Config{
-		N:          5,    //nolint:mnd // default segment count
+		N:          5, //nolint:mnd // default segment count
 		MinWidth:   1,
 		MaxWidth:   0,
 		Lambda:     50.0, //nolint:mnd // default width penalty coefficient

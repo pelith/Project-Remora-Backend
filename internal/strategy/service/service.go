@@ -50,7 +50,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 	}
 
 	// Step 3: Run coverage algorithm
-	result := allocation.Run(allocationBins, params.AlgoConfig)
+	result := allocation.Run(ctx, allocationBins, params.AlgoConfig)
 
 	return &strategy.ComputeResult{
 		CurrentTick: dist.CurrentTick,
@@ -78,5 +78,6 @@ func toAllocationBins(liqBins []liquidity.Bin, currentTick int32) []allocation.B
 			IsCurrent: isCurrent,
 		}
 	}
+
 	return bins
 }

@@ -10,18 +10,20 @@ import (
 	"remora/internal/liquidity"
 )
 
+type rebalanceTestCase struct {
+	name       string
+	ranges     []liquidity.TickRangeWeight
+	amount     decimal.Decimal
+	want       []liquidity.RebalanceAllocation
+	wantErr    bool
+	wantErrIs  error
+	wantAmount decimal.Decimal
+}
+
 func TestBuildRebalanceAllocations(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name       string
-		ranges     []liquidity.TickRangeWeight
-		amount     decimal.Decimal
-		want       []liquidity.RebalanceAllocation
-		wantErr    bool
-		wantErrIs  error
-		wantAmount decimal.Decimal
-	}{
+	tests := []rebalanceTestCase{
 		{
 			name: "success - weighted allocation",
 			ranges: []liquidity.TickRangeWeight{
@@ -127,36 +129,42 @@ func TestBuildRebalanceAllocations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := liquidity.BuildRebalanceAllocations(tt.ranges, tt.amount)
-			if err != nil {
-				if !tt.wantErr {
-					t.Fatalf("BuildRebalanceAllocations() failed: %v", err)
-				}
-
-				if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-					t.Fatalf("BuildRebalanceAllocations() error = %v, want %v", err, tt.wantErrIs)
-				}
-
-				return
-			}
-
-			if tt.wantErr {
-				t.Fatalf("BuildRebalanceAllocations() expected error")
-			}
-
-			if diff := cmp.Diff(tt.want, got, decimalComparer); diff != "" {
-				t.Fatalf("BuildRebalanceAllocations() mismatch (-want +got):\n%s", diff)
-			}
-
-			sum := decimal.Zero
-			for _, allocation := range got {
-				sum = sum.Add(allocation.Amount)
-			}
-
-			if !sum.Equal(tt.wantAmount) {
-				t.Fatalf("BuildRebalanceAllocations() amount sum = %s, want %s", sum, tt.wantAmount)
-			}
+			runOneRebalanceTest(t, tt, decimalComparer)
 		})
+	}
+}
+
+func runOneRebalanceTest(t *testing.T, tt rebalanceTestCase, decimalComparer cmp.Option) {
+	t.Helper()
+
+	got, err := liquidity.BuildRebalanceAllocations(tt.ranges, tt.amount)
+	if err != nil {
+		if !tt.wantErr {
+			t.Fatalf("BuildRebalanceAllocations() failed: %v", err)
+		}
+
+		if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+			t.Fatalf("BuildRebalanceAllocations() error = %v, want %v", err, tt.wantErrIs)
+		}
+
+		return
+	}
+
+	if tt.wantErr {
+		t.Fatalf("BuildRebalanceAllocations() expected error")
+	}
+
+	if diff := cmp.Diff(tt.want, got, decimalComparer); diff != "" {
+		t.Fatalf("BuildRebalanceAllocations() mismatch (-want +got):\n%s", diff)
+	}
+
+	sum := decimal.Zero
+	for _, allocation := range got {
+		sum = sum.Add(allocation.Amount)
+	}
+
+	if !sum.Equal(tt.wantAmount) {
+		t.Fatalf("BuildRebalanceAllocations() amount sum = %s, want %s", sum, tt.wantAmount)
 	}
 }
 
