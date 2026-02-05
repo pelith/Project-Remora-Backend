@@ -56,7 +56,7 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 	}
 
 	// Step 3: Run coverage algorithm
-	result := coverage.Run(allocationBins, params.AlgoConfig)
+	result := coverage.Run(ctx, allocationBins, params.AlgoConfig)
 
 	sqrtPriceX96 := new(big.Int)
 	sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
