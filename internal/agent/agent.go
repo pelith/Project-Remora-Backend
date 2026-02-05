@@ -130,11 +130,16 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		Hooks:       state.PoolKey.Hooks.Hex(),
 	}
 
+	tickSpacing := int32(state.PoolKey.TickSpacing.Int64()) //nolint:gosec // tickSpacing fits in int24
+	tickRange := state.AllowedTickUpper - state.AllowedTickLower
+
 	computeParams := &strategy.ComputeParams{
-		PoolKey:      liqPoolKey,
-		BinSizeTicks: 200,  // TODO: Configurable
-		TickRange:    1000, // TODO: Configurable
-		AlgoConfig:   coverage.DefaultConfig(),
+		PoolKey:          liqPoolKey,
+		BinSizeTicks:     tickSpacing,
+		TickRange:        tickRange,
+		AlgoConfig:       coverage.DefaultConfig(),
+		AllowedTickLower: state.AllowedTickLower,
+		AllowedTickUpper: state.AllowedTickUpper,
 	}
 
 	targetResult, err := s.strategySvc.ComputeTargetPositions(ctx, computeParams)
