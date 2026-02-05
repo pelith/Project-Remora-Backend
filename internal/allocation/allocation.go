@@ -8,7 +8,7 @@ import (
 
 // Allocate distributes user funds across segments based on weights
 // Main entry point for allocation calculation
-func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState) (*AllocationResult, error) {
+func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState, swapAllowed bool) (*AllocationResult, error) {
 	if len(segments) == 0 {
 		return &AllocationResult{
 			Positions:    []PositionPlan{},
@@ -21,22 +21,26 @@ func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState) (*Al
 	// 1. Calculate weights from LiquidityAdded
 	weights := normalizeWeights(segments)
 
-	// 2. Calculate total value in token1 units
+	if swapAllowed {
+		return allocateWithSwap(segments, weights, funds, pool)
+	}
+
+	return allocateWithoutSwap(segments, weights, funds, pool)
+}
+
+// allocateWithSwap implements the original logic: total value -> weights -> calculate swap
+func allocateWithSwap(segments []coverage.Segment, weights []float64, funds UserFunds, pool PoolState) (*AllocationResult, error) {
 	totalValue := calculateTotalValue(funds, pool)
 
-	// 3. For each segment: allocate value and calculate position
 	positions := make([]PositionPlan, len(segments))
 	totalAmount0 := big.NewInt(0)
 	totalAmount1 := big.NewInt(0)
 
 	for i, seg := range segments {
-		// allocatedValue = totalValue * weight
-		// Use big.Float for weight multiplication
 		totalValueFloat := new(big.Float).SetInt(totalValue)
 		allocatedFloat := new(big.Float).Mul(totalValueFloat, big.NewFloat(weights[i]))
 		allocatedValue, _ := allocatedFloat.Int(nil)
 
-		// seg.TickLower and seg.TickUpper are int32 in internal/coverage, convert to int
 		pos := calculatePosition(allocatedValue, int(seg.TickLower), int(seg.TickUpper), weights[i], pool)
 		positions[i] = *pos
 
@@ -44,7 +48,6 @@ func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState) (*Al
 		totalAmount1.Add(totalAmount1, pos.Amount1)
 	}
 
-	// 4. Calculate swap needed
 	swapAmount, token0To1 := calculateSwapNeeded(totalAmount0, totalAmount1, funds, pool)
 
 	return &AllocationResult{
@@ -53,6 +56,52 @@ func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState) (*Al
 		TotalAmount1:  totalAmount1,
 		SwapAmount:    swapAmount,
 		SwapToken0To1: token0To1,
+	}, nil
+}
+
+// allocateWithoutSwap implements "Fit-to-Balance" logic: distribute existing tokens by weight
+func allocateWithoutSwap(segments []coverage.Segment, weights []float64, funds UserFunds, pool PoolState) (*AllocationResult, error) {
+	positions := make([]PositionPlan, len(segments))
+	totalAmount0 := big.NewInt(0)
+	totalAmount1 := big.NewInt(0)
+
+	for i, seg := range segments {
+		// Distribute current balances by weight
+		budget0Float := new(big.Float).Mul(new(big.Float).SetInt(funds.Amount0), big.NewFloat(weights[i]))
+		budget1Float := new(big.Float).Mul(new(big.Float).SetInt(funds.Amount1), big.NewFloat(weights[i]))
+		
+		budget0, _ := budget0Float.Int(nil)
+		budget1, _ := budget1Float.Int(nil)
+
+		sqrtPriceAX96 := TickToSqrtPriceX96(int(seg.TickLower))
+		sqrtPriceBX96 := TickToSqrtPriceX96(int(seg.TickUpper))
+
+		// Calculate max liquidity L that fits into both budgets
+		liquidity := GetLiquidityForAmounts(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, budget0, budget1)
+
+		// Calculate actual amounts needed for this L
+		amt0 := GetAmount0ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, liquidity)
+		amt1 := GetAmount1ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, liquidity)
+
+		positions[i] = PositionPlan{
+			TickLower: int(seg.TickLower),
+			TickUpper: int(seg.TickUpper),
+			Liquidity: liquidity,
+			Amount0:   amt0,
+			Amount1:   amt1,
+			Weight:    weights[i],
+		}
+
+		totalAmount0.Add(totalAmount0, amt0)
+		totalAmount1.Add(totalAmount1, amt1)
+	}
+
+	return &AllocationResult{
+		Positions:     positions,
+		TotalAmount0:  totalAmount0,
+		TotalAmount1:  totalAmount1,
+		SwapAmount:    big.NewInt(0), // No swap allowed
+		SwapToken0To1: false,
 	}, nil
 }
 

@@ -209,7 +209,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		Amount1: total1,
 	}
 
-	allocationResult, err := allocation.Allocate(targetResult.Segments, userFunds, poolState)
+	allocationResult, err := allocation.Allocate(targetResult.Segments, userFunds, poolState, state.SwapAllowed)
 	if err != nil {
 		s.logger.Error("failed to allocate", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "allocation_error"}

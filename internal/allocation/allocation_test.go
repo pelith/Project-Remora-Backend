@@ -170,7 +170,7 @@ func TestAllocate_Integration(t *testing.T) {
 		{TickLower: 500, TickUpper: 1000, LiquidityAdded: big.NewInt(100)},   // above
 	}
 
-	result, err := Allocate(segments, funds, pool)
+	result, err := Allocate(segments, funds, pool, true)
 	if err != nil {
 		t.Fatalf("Allocate error: %v", err)
 	}
