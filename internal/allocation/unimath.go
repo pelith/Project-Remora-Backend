@@ -15,35 +15,21 @@ var (
 // TickToSqrtPriceX96 converts a tick to sqrtPriceX96
 // sqrtPriceX96 = sqrt(1.0001^tick) * 2^96
 func TickToSqrtPriceX96(tick int) *big.Int {
-	// Use float64 for intermediate calculation, then convert to big.Int
-	// price = 1.0001^tick
-	// sqrtPrice = 1.0001^(tick/2)
-	sqrtPrice := math.Pow(1.0001, float64(tick)/2.0)
-
-	// sqrtPriceX96 = sqrtPrice * 2^96
-	sqrtPriceX96 := new(big.Float).SetFloat64(sqrtPrice)
-	q96Float := new(big.Float).SetInt(Q96)
-	sqrtPriceX96.Mul(sqrtPriceX96, q96Float)
-
-	result := new(big.Int)
-	sqrtPriceX96.Int(result)
-	return result
+	sqrtPriceX96, err := GetSqrtRatioAtTick(tick)
+	if err != nil {
+		return big.NewInt(0)
+	}
+	return sqrtPriceX96
 }
 
 // SqrtPriceX96ToTick converts sqrtPriceX96 to tick
 // tick = log(sqrtPriceX96^2 / 2^192) / log(1.0001)
 func SqrtPriceX96ToTick(sqrtPriceX96 *big.Int) int {
-	// sqrtPrice = sqrtPriceX96 / 2^96
-	sqrtPriceFloat := new(big.Float).SetInt(sqrtPriceX96)
-	q96Float := new(big.Float).SetInt(Q96)
-	sqrtPriceFloat.Quo(sqrtPriceFloat, q96Float)
-
-	sqrtPrice, _ := sqrtPriceFloat.Float64()
-	// price = sqrtPrice^2
-	// tick = log(price) / log(1.0001)
-	price := sqrtPrice * sqrtPrice
-	tick := math.Log(price) / math.Log(1.0001)
-	return int(math.Floor(tick))
+	tick, err := GetTickAtSqrtRatio(sqrtPriceX96)
+	if err != nil {
+		return 0
+	}
+	return tick
 }
 
 // GetAmount0ForLiquidity calculates amount0 given liquidity and price range

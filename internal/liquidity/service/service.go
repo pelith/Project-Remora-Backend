@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"log/slog"
 	"sort"
 
 	"remora/internal/liquidity"
@@ -33,11 +34,24 @@ func (s *Service) GetDistribution(ctx context.Context, params *liquidity.Distrib
 
 	poolKey := &params.PoolKey
 
+	slog.Info("liquidity distribution start",
+		slog.String("currency0", poolKey.Currency0),
+		slog.String("currency1", poolKey.Currency1),
+		slog.Int("tick_spacing", int(poolKey.TickSpacing)),
+		slog.Int("bin_size", int(params.BinSizeTicks)),
+		slog.Int("tick_range", int(params.TickRange)),
+	)
+
 	// Step 1: Get current pool state (tick and sqrtPrice)
 	slot0, err := s.repo.GetSlot0(ctx, poolKey)
 	if err != nil {
 		return nil, fmt.Errorf("get slot0: %w", err)
 	}
+
+	slog.Info("liquidity slot0",
+		slog.Int("current_tick", int(slot0.Tick)),
+		slog.String("sqrt_price_x96", slot0.SqrtPriceX96.String()),
+	)
 
 	// Step 2: Read initialized ticks in the specified range
 	ticks, err := s.getInitializedTicks(ctx, poolKey, slot0.Tick, params.TickRange, poolKey.TickSpacing)
@@ -45,11 +59,15 @@ func (s *Service) GetDistribution(ctx context.Context, params *liquidity.Distrib
 		return nil, fmt.Errorf("get initialized ticks: %w", err)
 	}
 
+	slog.Info("liquidity initialized ticks", slog.Int("count", len(ticks)))
+
 	// Step 3: Calculate active liquidity using prefix sum
 	activeLiquidities := s.calculateActiveLiquidity(ticks)
 
 	// Step 4: Aggregate into discretized bins
 	bins := s.aggregateBins(ticks, activeLiquidities, params.BinSizeTicks)
+
+	slog.Info("liquidity bins aggregated", slog.Int("count", len(bins)))
 
 	return &liquidity.Distribution{
 		CurrentTick:      slot0.Tick,

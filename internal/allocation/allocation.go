@@ -28,24 +28,78 @@ func Allocate(segments []coverage.Segment, funds UserFunds, pool PoolState, swap
 	return allocateWithoutSwap(segments, weights, funds, pool)
 }
 
-// allocateWithSwap implements the original logic: total value -> weights -> calculate swap
+// allocateWithSwap distributes funds across segments preserving target liquidity proportions.
+// Uses reference-L scaling: compute amounts at target L ratios, then uniformly scale
+// to fit available value. This avoids non-linear distortion from value→L conversion.
 func allocateWithSwap(segments []coverage.Segment, weights []float64, funds UserFunds, pool PoolState) (*AllocationResult, error) {
 	totalValue := calculateTotalValue(funds, pool)
 
+	// Step 1: Compute reference liquidity per segment (proportional to weights)
+	// Use Q96 as base reference liquidity for precision
+	refLiq := new(big.Int).Set(Q96)
+
+	type refInfo struct {
+		liquidity *big.Int
+	}
+	refs := make([]refInfo, len(segments))
+	totalRefValue := big.NewInt(0)
+
+	for i, seg := range segments {
+		// Scale reference liquidity by weight
+		liqFloat := new(big.Float).Mul(new(big.Float).SetInt(refLiq), big.NewFloat(weights[i]))
+		liq, _ := liqFloat.Int(nil)
+
+		sqrtPriceAX96 := TickToSqrtPriceX96(int(seg.TickLower))
+		sqrtPriceBX96 := TickToSqrtPriceX96(int(seg.TickUpper))
+
+		// Compute amounts at this reference liquidity
+		amt0 := GetAmount0ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, liq)
+		amt1 := GetAmount1ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, liq)
+
+		// Compute value of this reference position
+		val := calculateTotalValue(UserFunds{Amount0: amt0, Amount1: amt1}, pool)
+		totalRefValue.Add(totalRefValue, val)
+
+		refs[i] = refInfo{liquidity: liq}
+	}
+
+	if totalRefValue.Sign() == 0 {
+		return &AllocationResult{
+			Positions:    make([]PositionPlan, len(segments)),
+			TotalAmount0: big.NewInt(0),
+			TotalAmount1: big.NewInt(0),
+			SwapAmount:   big.NewInt(0),
+		}, nil
+	}
+
+	// Step 2: Scale all liquidity uniformly: finalL = refL * totalValue / totalRefValue
+	// Since amounts are linear in L, this preserves proportions perfectly
 	positions := make([]PositionPlan, len(segments))
 	totalAmount0 := big.NewInt(0)
 	totalAmount1 := big.NewInt(0)
 
 	for i, seg := range segments {
-		totalValueFloat := new(big.Float).SetInt(totalValue)
-		allocatedFloat := new(big.Float).Mul(totalValueFloat, big.NewFloat(weights[i]))
-		allocatedValue, _ := allocatedFloat.Int(nil)
+		sqrtPriceAX96 := TickToSqrtPriceX96(int(seg.TickLower))
+		sqrtPriceBX96 := TickToSqrtPriceX96(int(seg.TickUpper))
 
-		pos := calculatePosition(allocatedValue, int(seg.TickLower), int(seg.TickUpper), weights[i], pool)
-		positions[i] = *pos
+		// finalL = refL * totalValue / totalRefValue
+		finalLiq := new(big.Int).Mul(refs[i].liquidity, totalValue)
+		finalLiq.Div(finalLiq, totalRefValue)
 
-		totalAmount0.Add(totalAmount0, pos.Amount0)
-		totalAmount1.Add(totalAmount1, pos.Amount1)
+		amt0 := GetAmount0ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, finalLiq)
+		amt1 := GetAmount1ForLiquidity(pool.SqrtPriceX96, sqrtPriceAX96, sqrtPriceBX96, finalLiq)
+
+		positions[i] = PositionPlan{
+			TickLower: int(seg.TickLower),
+			TickUpper: int(seg.TickUpper),
+			Liquidity: finalLiq,
+			Amount0:   amt0,
+			Amount1:   amt1,
+			Weight:    weights[i],
+		}
+
+		totalAmount0.Add(totalAmount0, amt0)
+		totalAmount1.Add(totalAmount1, amt1)
 	}
 
 	swapAmount, token0To1 := calculateSwapNeeded(totalAmount0, totalAmount1, funds, pool)

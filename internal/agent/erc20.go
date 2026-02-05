@@ -29,6 +29,11 @@ func init() {
 
 // getTokenDecimals fetches the decimals for a given token address.
 func (s *Service) getTokenDecimals(ctx context.Context, token common.Address) (uint8, error) {
+	if token == (common.Address{}) {
+		// Native ETH
+		return 18, nil
+	}
+
 	// Pack the input for the "decimals" call
 	data, err := erc20ABI.Pack("decimals")
 	if err != nil {
@@ -66,6 +71,11 @@ func (s *Service) getTokenDecimals(ctx context.Context, token common.Address) (u
 
 // getTokenBalance fetches the balance of a token for a specific owner.
 func (s *Service) getTokenBalance(ctx context.Context, token common.Address, owner common.Address) (*big.Int, error) {
+	if token == (common.Address{}) {
+		// Native ETH
+		return s.ethClient.BalanceAt(ctx, owner, nil)
+	}
+
 	// Pack the input for the "balanceOf" call
 	data, err := erc20ABI.Pack("balanceOf", owner)
 	if err != nil {

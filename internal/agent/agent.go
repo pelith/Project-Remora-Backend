@@ -38,11 +38,12 @@ type Service struct {
 	signer        *signer.Signer
 	ethClient     *ethclient.Client
 	logger        *slog.Logger
-	stateViewAddr common.Address
 
 	deviationThreshold float64
 	swapSlippageBps    int64
+	mintSlippageBps    int64
 	maxGasPriceGwei    float64
+	tickRangeOverride  int32
 }
 
 // New creates a new agent service.
@@ -52,7 +53,6 @@ func New(
 	signer *signer.Signer,
 	ethClient *ethclient.Client,
 	logger *slog.Logger,
-	stateViewAddr common.Address,
 ) *Service {
 	return &Service{
 		vaultSource:        vaultSource,
@@ -60,22 +60,29 @@ func New(
 		signer:             signer,
 		ethClient:          ethClient,
 		logger:             logger,
-		stateViewAddr:      stateViewAddr,
 		deviationThreshold: 0.1,
 		swapSlippageBps:    50,  // default: 0.5%
+		mintSlippageBps:    50,  // default: 0.5%
 		maxGasPriceGwei:    1.0, // default: 1.0 Gwei (suitable for many L2s)
 	}
 }
 
 // SetProtectionSettings updates the protection settings for the service.
-func (s *Service) SetProtectionSettings(swapSlippageBps int64, maxGasPriceGwei float64) {
+func (s *Service) SetProtectionSettings(swapSlippageBps int64, mintSlippageBps int64, maxGasPriceGwei float64) {
 	s.swapSlippageBps = swapSlippageBps
+	s.mintSlippageBps = mintSlippageBps
 	s.maxGasPriceGwei = maxGasPriceGwei
 }
 
 // SetDeviationThreshold updates the threshold for rebalance decision.
 func (s *Service) SetDeviationThreshold(threshold float64) {
 	s.deviationThreshold = threshold
+}
+
+// SetTickRangeAroundCurrent overrides the tick range used for market scan.
+// Value is interpreted as +/- ticks around current tick.
+func (s *Service) SetTickRangeAroundCurrent(tickRange int32) {
+	s.tickRangeOverride = tickRange
 }
 
 // Run executes one round of rebalance check for all vaults.
@@ -131,16 +138,51 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	}
 
 	tickSpacing := int32(state.PoolKey.TickSpacing.Int64()) //nolint:gosec // tickSpacing fits in int24
-	tickRange := state.AllowedTickUpper - state.AllowedTickLower
+	
+	// Determine effective scan radius. 
+	// Start with the full width of the vault's allowed range.
+	vaultRange := state.AllowedTickUpper - state.AllowedTickLower
+	tickRange := vaultRange
+	
+	// If an override is provided (TICK_RANGE_AROUND_CURRENT) and the vault range is wider,
+	// cap the scan radius to the override value to optimize performance.
+	if s.tickRangeOverride > 0 && tickRange > s.tickRangeOverride {
+		s.logger.Info("capping tick range with override", 
+			slog.Int("vault_range", int(vaultRange)), 
+			slog.Int("override_limit", int(s.tickRangeOverride)))
+		tickRange = s.tickRangeOverride
+	}
+
+	s.logger.Info("tick range selection",
+		slog.Int("vault_allowed_width", int(vaultRange)),
+		slog.Int("override_setting", int(s.tickRangeOverride)),
+		slog.Int("final_scan_radius", int(tickRange)),
+	)
+
+	// Build coverage config: use vault's MaxPositionsK if set, otherwise default
+	algoConfig := coverage.DefaultConfig()
+	if state.MaxPositionsK != nil && state.MaxPositionsK.Sign() > 0 {
+		algoConfig.N = int(state.MaxPositionsK.Int64())
+	}
 
 	computeParams := &strategy.ComputeParams{
 		PoolKey:          liqPoolKey,
 		BinSizeTicks:     tickSpacing,
 		TickRange:        tickRange,
-		AlgoConfig:       coverage.DefaultConfig(),
+		AlgoConfig:       algoConfig,
 		AllowedTickLower: state.AllowedTickLower,
 		AllowedTickUpper: state.AllowedTickUpper,
 	}
+
+	s.logger.Info("computing target positions",
+		slog.String("pool_currency0", liqPoolKey.Currency0),
+		slog.String("pool_currency1", liqPoolKey.Currency1),
+		slog.Int("tick_spacing", int(tickSpacing)),
+		slog.Int("tick_range", int(tickRange)),
+		slog.Int("max_positions", algoConfig.N),
+		slog.Int("allowed_lower", int(state.AllowedTickLower)),
+		slog.Int("allowed_upper", int(state.AllowedTickUpper)),
+	)
 
 	targetResult, err := s.strategySvc.ComputeTargetPositions(ctx, computeParams)
 	if err != nil {
@@ -148,8 +190,13 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "strategy_error"}
 	}
 
+	s.logger.Info("target positions computed",
+		slog.Int("segments", len(targetResult.Segments)),
+		slog.Int("bins", len(targetResult.Bins)),
+		slog.Int("current_tick", int(targetResult.CurrentTick)),
+	)
+
 	// Step 4: Calculate Total Assets (Idle + Invested)
-	// We need decimals and balances
 	token0 := state.PoolKey.Currency0
 	token1 := state.PoolKey.Currency1
 
@@ -184,15 +231,21 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "get_positions_error"}
 	}
 
+	s.logger.Info("fetched positions from vault", slog.Any("token_ids", func() []string {
+		ids := make([]string, len(positions))
+		for i, p := range positions {
+			ids[i] = p.TokenID.String()
+		}
+		return ids
+	}()))
+
 	invested0 := big.NewInt(0)
 	invested1 := big.NewInt(0)
 
-	// We use the Strategy's SqrtPriceX96 to estimate current position value
-	// Note: accurate value requires getting the real positions info including uncollected fees,
-	// but here we just estimate principal from liquidity.
-	for _, pos := range positions {
+	for i := range positions {
+		pos := &positions[i]
 		// Fetch real liquidity from POSM/StateView
-		liquidity, err := s.getPositionLiquidity(ctx, state.Posm, state.PoolID, pos.TokenID)
+		liquidity, err := s.getPositionLiquidity(ctx, state.Posm, pos.TokenID)
 		if err != nil {
 			s.logger.Warn("failed to get position liquidity",
 				slog.String("tokenID", pos.TokenID.String()),
@@ -205,8 +258,6 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 			continue
 		}
 
-		// Calculate amounts for this position
-		// allocation.GetAmount0ForLiquidity needs sqrtPriceX96, sqrtPriceA, sqrtPriceB, liquidity
 		sqrtPriceAX96 := allocation.TickToSqrtPriceX96(int(pos.TickLower))
 		sqrtPriceBX96 := allocation.TickToSqrtPriceX96(int(pos.TickUpper))
 
@@ -217,22 +268,25 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		invested1.Add(invested1, amt1)
 	}
 
-	// Step 4.5: Deviation Check
-	// Decide if we really need to rebalance
-	deviation := s.calculateDeviation(positions, targetResult)
-	s.logger.Info("deviation calculated", slog.Float64("deviation", deviation), slog.Float64("threshold", s.deviationThreshold))
-
-	if deviation < s.deviationThreshold {
-		return RebalanceResult{
-			VaultAddress: vaultAddr,
-			Rebalanced:   false,
-			Reason:       "deviation_below_threshold",
-		}
-	}
-
-	// Sum total
+	// Sum total assets
 	total0 := new(big.Int).Add(idle0, invested0)
 	total1 := new(big.Int).Add(idle1, invested1)
+
+	// Apply Safety Buffer
+	// Reduce available funds by mint slippage tolerance to ensure successful minting even if price moves.
+	bufferBps := big.NewInt(s.mintSlippageBps)
+	multiplier := big.NewInt(10000)
+	multiplier.Sub(multiplier, bufferBps)
+
+	total0.Mul(total0, multiplier).Div(total0, big.NewInt(10000))
+	total1.Mul(total1, multiplier).Div(total1, big.NewInt(10000))
+
+	s.logger.Info("preparing allocation",
+		slog.Int("decimals0", int(decimals0)),
+		slog.Int("decimals1", int(decimals1)),
+		slog.String("total0_buffered", total0.String()),
+		slog.String("total1_buffered", total1.String()),
+	)
 
 	// Step 5: Allocate
 	poolState := allocation.PoolState{
@@ -253,14 +307,43 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "allocation_error"}
 	}
 
+	// Step 4.5: Deviation Check
+	// Decide if we really need to rebalance based on post-allocation plan
+	deviation := s.calculateDeviation(positions, allocationResult.Positions)
+	s.logger.Info("deviation calculated", slog.Float64("deviation", deviation), slog.Float64("threshold", s.deviationThreshold))
+
+	if deviation < s.deviationThreshold {
+		return RebalanceResult{
+			VaultAddress: vaultAddr,
+			Rebalanced:   false,
+			Reason:       "deviation_below_threshold",
+		}
+	}
+
 	s.logger.Info("allocation computed",
 		slog.String("swap_amount", allocationResult.SwapAmount.String()),
 		slog.Bool("zero_for_one", allocationResult.SwapToken0To1),
 		slog.Int("new_positions", len(allocationResult.Positions)),
+		slog.String("total_amount0", allocationResult.TotalAmount0.String()),
+		slog.String("total_amount1", allocationResult.TotalAmount1.String()),
+		slog.String("available_token0", total0.String()),
+		slog.String("available_token1", total1.String()),
 	)
 
+	for i, pos := range allocationResult.Positions {
+		s.logger.Info("allocation position detail",
+			slog.Int("index", i),
+			slog.Int("tickLower", pos.TickLower),
+			slog.Int("tickUpper", pos.TickUpper),
+			slog.String("liquidity", pos.Liquidity.String()),
+			slog.String("amount0", pos.Amount0.String()),
+			slog.String("amount1", pos.Amount1.String()),
+			slog.Float64("weight", pos.Weight),
+		)
+	}
+
 	// Step 6: Execute rebalance
-	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult, targetResult.SqrtPriceX96)
+	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult, targetResult.SqrtPriceX96, token0, token1)
 	if err != nil {
 		s.logger.Error("failed to execute rebalance", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "execution_error"}
