@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"remora/internal/coverage"
 	"remora/internal/liquidity"
 )
 
@@ -65,11 +64,11 @@ func TestToAllocationBins_FiltersUpperBound(t *testing.T) {
 
 func TestToAllocationBins_FiltersBothBounds(t *testing.T) {
 	bins := []liquidity.Bin{
-		{TickLower: -500, TickUpper: -400, ActiveLiquidity: big.NewInt(10)},  // out
-		{TickLower: -100, TickUpper: 0, ActiveLiquidity: big.NewInt(100)},    // in
-		{TickLower: 0, TickUpper: 100, ActiveLiquidity: big.NewInt(200)},     // in
-		{TickLower: 100, TickUpper: 200, ActiveLiquidity: big.NewInt(300)},   // in
-		{TickLower: 400, TickUpper: 500, ActiveLiquidity: big.NewInt(10)},    // out
+		{TickLower: -500, TickUpper: -400, ActiveLiquidity: big.NewInt(10)}, // out
+		{TickLower: -100, TickUpper: 0, ActiveLiquidity: big.NewInt(100)},   // in
+		{TickLower: 0, TickUpper: 100, ActiveLiquidity: big.NewInt(200)},    // in
+		{TickLower: 100, TickUpper: 200, ActiveLiquidity: big.NewInt(300)},  // in
+		{TickLower: 400, TickUpper: 500, ActiveLiquidity: big.NewInt(10)},   // out
 	}
 
 	result := toAllocationBins(bins, 50, -100, 200)
@@ -129,9 +128,9 @@ func TestToAllocationBins_LiquidityPreserved(t *testing.T) {
 
 func TestToAllocationBins_EdgeExactBoundary(t *testing.T) {
 	bins := []liquidity.Bin{
-		{TickLower: -100, TickUpper: 0, ActiveLiquidity: big.NewInt(100)},   // exactly at lower bound
-		{TickLower: 0, TickUpper: 100, ActiveLiquidity: big.NewInt(200)},    // middle
-		{TickLower: 100, TickUpper: 200, ActiveLiquidity: big.NewInt(300)},  // exactly at upper bound
+		{TickLower: -100, TickUpper: 0, ActiveLiquidity: big.NewInt(100)},  // exactly at lower bound
+		{TickLower: 0, TickUpper: 100, ActiveLiquidity: big.NewInt(200)},   // middle
+		{TickLower: 100, TickUpper: 200, ActiveLiquidity: big.NewInt(300)}, // exactly at upper bound
 	}
 
 	result := toAllocationBins(bins, 50, -100, 200)
@@ -159,7 +158,7 @@ func TestToAllocationBins_PartialOverlapFiltered(t *testing.T) {
 	}
 }
 
-// Verify output type is correct coverage.Bin
+// Verify output type is correct coverage.Bin.
 func TestToAllocationBins_OutputType(t *testing.T) {
 	bins := []liquidity.Bin{
 		{TickLower: 0, TickUpper: 100, ActiveLiquidity: big.NewInt(500)},
@@ -168,7 +167,7 @@ func TestToAllocationBins_OutputType(t *testing.T) {
 	result := toAllocationBins(bins, 50, 0, 100)
 
 	// Type assertion - compile-time check
-	var _ []coverage.Bin = result
+	_ = result
 	if len(result) != 1 {
 		t.Fatal("expected 1 bin")
 	}

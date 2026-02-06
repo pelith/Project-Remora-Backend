@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/big"
 	"sort"
+
 	"remora/internal/liquidity"
 	"remora/internal/liquidity/poolid"
 )
@@ -24,6 +25,11 @@ func New(repo liquidity.Repository) *Service {
 
 // Ensure Service implements liquidity.Service.
 var _ liquidity.Service = (*Service)(nil)
+
+// GetSlot0 returns the current pool state for the given pool key.
+func (s *Service) GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*liquidity.Slot0, error) {
+	return s.repo.GetSlot0(ctx, poolKey)
+}
 
 // GetDistribution returns the liquidity distribution for a pool.
 func (s *Service) GetDistribution(ctx context.Context, params *liquidity.DistributionParams) (*liquidity.Distribution, error) {
@@ -52,6 +58,14 @@ func (s *Service) GetDistribution(ctx context.Context, params *liquidity.Distrib
 		slog.String("sqrt_price_x96", slot0.SqrtPriceX96.String()),
 	)
 
+	// Step 1b: Get pool total liquidity L
+	poolLiquidity, err := s.repo.GetLiquidity(ctx, poolKey)
+	if err != nil {
+		return nil, fmt.Errorf("get liquidity: %w", err)
+	}
+
+	slog.Info("liquidity pool total", slog.String("liquidity", poolLiquidity.String()))
+
 	// Step 2: Read initialized ticks in the specified range
 	ticks, err := s.getInitializedTicks(ctx, poolKey, slot0.Tick, params.TickRange, poolKey.TickSpacing)
 	if err != nil {
@@ -71,6 +85,7 @@ func (s *Service) GetDistribution(ctx context.Context, params *liquidity.Distrib
 	return &liquidity.Distribution{
 		CurrentTick:      slot0.Tick,
 		SqrtPriceX96:     slot0.SqrtPriceX96.String(),
+		Liquidity:        poolLiquidity.String(),
 		InitializedTicks: ticks,
 		Bins:             bins,
 	}, nil
@@ -105,6 +120,7 @@ func (s *Service) getInitializedTicks(ctx context.Context, poolKey *poolid.PoolK
 
 	// Phase 1: Collect all initialized tick indices from bitmaps.
 	var tickIndices []int32
+
 	for wordPos := wordPosLower; wordPos <= wordPosUpper; wordPos++ {
 		bitmap, err := s.repo.GetTickBitmap(ctx, poolKey, wordPos)
 		if err != nil {

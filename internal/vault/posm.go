@@ -1,4 +1,4 @@
-package agent
+package vault
 
 import (
 	"context"
@@ -8,10 +8,11 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// Minimal ABI for POSM.
+// Minimal ABI for POSM getPositionLiquidity (shared with agent for consistency).
 const posmABIJSON = `[
 	{"constant":true,"inputs":[{"name":"tokenId","type":"uint256"}],"name":"getPositionLiquidity","outputs":[{"name":"liquidity","type":"uint128"}],"type":"function"}
 ]`
@@ -23,12 +24,13 @@ func init() {
 
 	posmABI, err = abi.JSON(strings.NewReader(posmABIJSON))
 	if err != nil {
-		panic(fmt.Sprintf("failed to parse POSM ABI: %v", err))
+		panic(fmt.Sprintf("parse POSM ABI: %v", err))
 	}
 }
 
 // getPositionLiquidity fetches the liquidity of a position via POSM's getPositionLiquidity(uint256).
-func (s *Service) getPositionLiquidity(ctx context.Context, posmAddr common.Address, tokenID *big.Int) (*big.Int, error) {
+// Caller can be vault.Client's caller or any bind.ContractCaller (e.g. ethclient).
+func getPositionLiquidity(ctx context.Context, caller bind.ContractCaller, posmAddr common.Address, tokenID *big.Int) (*big.Int, error) {
 	data, err := posmABI.Pack("getPositionLiquidity", tokenID)
 	if err != nil {
 		return nil, fmt.Errorf("pack getPositionLiquidity: %w", err)
@@ -36,7 +38,7 @@ func (s *Service) getPositionLiquidity(ctx context.Context, posmAddr common.Addr
 
 	msg := ethereum.CallMsg{To: &posmAddr, Data: data}
 
-	output, err := s.ethClient.CallContract(ctx, msg, nil)
+	output, err := caller.CallContract(ctx, msg, nil)
 	if err != nil {
 		return nil, fmt.Errorf("call getPositionLiquidity: %w", err)
 	}
@@ -46,12 +48,10 @@ func (s *Service) getPositionLiquidity(ctx context.Context, posmAddr common.Addr
 		return nil, fmt.Errorf("unpack getPositionLiquidity: %w", err)
 	}
 
-	if len(results) == 0 {
-		return nil, fmt.Errorf("unpack getPositionLiquidity: empty result")
-	}
 	liq, ok := results[0].(*big.Int)
 	if !ok {
-		return nil, fmt.Errorf("unpack getPositionLiquidity: unexpected result type %T", results[0])
+		return nil, fmt.Errorf("unexpected getPositionLiquidity result type: %T", results[0])
 	}
+
 	return liq, nil
 }

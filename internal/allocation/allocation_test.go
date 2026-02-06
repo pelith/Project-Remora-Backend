@@ -52,7 +52,7 @@ func TestNormalizeWeights_ZeroTotal(t *testing.T) {
 	}
 }
 
-// Use simple setup: both tokens 18 decimals, price = 1 (tick 0)
+// Use simple setup: both tokens 18 decimals, price = 1 (tick 0).
 func simplePool() PoolState {
 	return PoolState{
 		SqrtPriceX96:   TickToSqrtPriceX96(0), // price = 1
@@ -205,7 +205,7 @@ func TestAllocate_Integration(t *testing.T) {
 func TestCalculateLiquidityFromValue_InRange_Verify(t *testing.T) {
 	// Setup pool at Tick 0 (Price = 1 raw)
 	sqrtP := TickToSqrtPriceX96(0)
-	
+
 	// Range [-887220, 887220] is max, let's use [-600, 600]
 	tickLower := -600
 	tickUpper := 600
@@ -249,7 +249,7 @@ func TestCalculateLiquidityFromValue_InRange_Verify(t *testing.T) {
 
 			// Calculate L
 			L := calculateLiquidityFromValue(tc.val, sqrtP, sqrtA, sqrtB, pool)
-			
+
 			// Verify by calculating amounts back
 			a0 := GetAmount0ForLiquidity(sqrtP, sqrtA, sqrtB, L)
 			a1 := GetAmount1ForLiquidity(sqrtP, sqrtA, sqrtB, L)
@@ -263,7 +263,7 @@ func TestCalculateLiquidityFromValue_InRange_Verify(t *testing.T) {
 			tolerance := new(big.Int).Div(tc.val, big.NewInt(100)) // 1% tolerance (should be much tighter actually)
 
 			if diff.CmpAbs(tolerance) > 0 {
-				t.Errorf("Value mismatch: Input: %s, Recalc: %s, Diff: %s", 
+				t.Errorf("Value mismatch: Input: %s, Recalc: %s, Diff: %s",
 					tc.val.String(), recalcVal.String(), diff.String())
 				t.Logf("L: %s", L.String())
 				t.Logf("a0: %s", a0.String())

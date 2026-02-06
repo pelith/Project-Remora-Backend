@@ -52,7 +52,7 @@ func TestGetLiquidityForAmounts_RoundTrip(t *testing.T) {
 	sqrtPriceBX96 := TickToSqrtPriceX96(1000)
 
 	// Given amounts
-	amount0 := big.NewInt(1e18)  // 1 token0
+	amount0 := big.NewInt(1e18)   // 1 token0
 	amount1 := big.NewInt(1000e6) // 1000 token1
 
 	// Calculate liquidity

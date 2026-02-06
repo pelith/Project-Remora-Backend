@@ -92,6 +92,22 @@ func (r *Repository) GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*li
 	}, nil
 }
 
+// GetLiquidity retrieves the pool total liquidity L.
+func (r *Repository) GetLiquidity(ctx context.Context, poolKey *poolid.PoolKey) (*big.Int, error) {
+	if r.contract == nil {
+		return big.NewInt(0), nil
+	}
+
+	poolID := poolid.CalculatePoolID(poolKey)
+
+	liquidity, err := r.contract.GetLiquidity(&bind.CallOpts{Context: ctx}, poolID)
+	if err != nil {
+		return nil, fmt.Errorf("get liquidity: %w", err)
+	}
+
+	return liquidity, nil
+}
+
 // GetTickBitmap retrieves the tick bitmap for a word position.
 func (r *Repository) GetTickBitmap(ctx context.Context, poolKey *poolid.PoolKey, wordPos int16) (*big.Int, error) {
 	// Mock mode for testing

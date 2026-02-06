@@ -39,11 +39,11 @@ type RebalanceResult struct {
 
 // Service is the main agent orchestrator.
 type Service struct {
-	vaultSource   VaultSource
-	strategySvc   strategy.Service
-	signer        *signer.Signer
-	ethClient     *ethclient.Client
-	logger        *slog.Logger
+	vaultSource VaultSource
+	strategySvc strategy.Service
+	signer      *signer.Signer
+	ethClient   *ethclient.Client
+	logger      *slog.Logger
 
 	deviationThreshold float64
 	swapSlippageBps    int64
@@ -115,7 +115,6 @@ func (s *Service) Run(ctx context.Context) ([]RebalanceResult, error) {
 
 // processVault handles rebalance logic for a single vault.
 func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) RebalanceResult {
-
 	s.logger.Info("processing vault", slog.String("address", vaultAddr.Hex()))
 
 	// Step 1: Create vault client
@@ -139,6 +138,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	// Check if agent is paused for this vault
 	if state.AgentPaused {
 		s.logger.Info("vault agent is paused, skipping", slog.String("address", vaultAddr.Hex()))
+
 		return RebalanceResult{
 			VaultAddress: vaultAddr,
 			Rebalanced:   false,
@@ -151,23 +151,23 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	liqPoolKey := poolid.PoolKey{
 		Currency0:   state.PoolKey.Currency0.Hex(),
 		Currency1:   state.PoolKey.Currency1.Hex(),
-		Fee:         uint32(state.PoolKey.Fee.Uint64()),         //nolint:gosec // fee fits in uint24
-		TickSpacing: int32(state.PoolKey.TickSpacing.Int64()),   //nolint:gosec // tickSpacing fits in int24
+		Fee:         uint32(state.PoolKey.Fee.Uint64()),       //nolint:gosec // fee fits in uint24
+		TickSpacing: int32(state.PoolKey.TickSpacing.Int64()), //nolint:gosec // tickSpacing fits in int24
 		Hooks:       state.PoolKey.Hooks.Hex(),
 	}
 
 	tickSpacing := int32(state.PoolKey.TickSpacing.Int64()) //nolint:gosec // tickSpacing fits in int24
-	
-	// Determine effective scan radius. 
+
+	// Determine effective scan radius.
 	// Start with the full width of the vault's allowed range.
 	vaultRange := state.AllowedTickUpper - state.AllowedTickLower
 	tickRange := vaultRange
-	
+
 	// If an override is provided (TICK_RANGE_AROUND_CURRENT) and the vault range is wider,
 	// cap the scan radius to the override value to optimize performance.
 	if s.tickRangeOverride > 0 && tickRange > s.tickRangeOverride {
-		s.logger.Info("capping tick range with override", 
-			slog.Int("vault_range", int(vaultRange)), 
+		s.logger.Info("capping tick range with override",
+			slog.Int("vault_range", int(vaultRange)),
 			slog.Int("override_limit", int(s.tickRangeOverride)))
 		tickRange = s.tickRangeOverride
 	}
@@ -225,6 +225,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		s.logger.Error("failed to get token0 decimals", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "token_error"}
 	}
+
 	decimals1, err := s.getTokenDecimals(ctx, token1)
 	if err != nil {
 		s.logger.Error("failed to get token1 decimals", slog.Any("error", err))
@@ -237,6 +238,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		s.logger.Error("failed to get token0 balance", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "balance_error"}
 	}
+
 	idle1, err := s.getTokenBalance(ctx, token1, vaultAddr)
 	if err != nil {
 		s.logger.Error("failed to get token1 balance", slog.Any("error", err))
@@ -255,6 +257,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 		for i, p := range positions {
 			ids[i] = p.TokenID.String()
 		}
+
 		return ids
 	}()))
 
@@ -269,8 +272,10 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 			s.logger.Warn("failed to get position liquidity",
 				slog.String("tokenID", pos.TokenID.String()),
 				slog.Any("error", err))
+
 			continue
 		}
+
 		pos.Liquidity = liquidity
 
 		if pos.Liquidity == nil || pos.Liquidity.Sign() == 0 {

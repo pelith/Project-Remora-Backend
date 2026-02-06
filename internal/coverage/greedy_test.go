@@ -281,7 +281,7 @@ func TestEnforceMinLiquidity_Empty(t *testing.T) {
 func TestEnforceMinLiquidity_FiltersTinySegments(t *testing.T) {
 	segments := []internalSegment{
 		{l: 0, r: 4, h: 1000, liquidityAdded: 1000}, // width=5, amount=5000
-		{l: 6, r: 6, h: 1, liquidityAdded: 1},        // width=1, amount=1 (tiny)
+		{l: 6, r: 6, h: 1, liquidityAdded: 1},       // width=1, amount=1 (tiny)
 	}
 
 	result := enforceMinLiquidity(segments, 3)

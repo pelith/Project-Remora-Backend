@@ -2,9 +2,10 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"math/big"
 	"log/slog"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -24,6 +25,7 @@ var factoryABI abi.ABI
 
 func init() {
 	var err error
+
 	factoryABI, err = abi.JSON(strings.NewReader(factoryABIJSON))
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse factory ABI: %v", err))
@@ -47,7 +49,7 @@ func NewFactoryVaultSource(client *ethclient.Client, factoryAddr common.Address)
 // GetVaultAddresses returns all vaults created by the factory.
 func (s *FactoryVaultSource) GetVaultAddresses(ctx context.Context) ([]common.Address, error) {
 	if s.factoryAddr == (common.Address{}) {
-		return nil, fmt.Errorf("factory address not set")
+		return nil, errors.New("factory address not set")
 	}
 
 	// First try getAllVaults()
@@ -70,15 +72,17 @@ func (s *FactoryVaultSource) GetVaultAddresses(ctx context.Context) ([]common.Ad
 	}
 
 	addrs := make([]common.Address, 0, count)
-	for i := int64(0); i < count; i++ {
+	for i := range count {
 		addr, err := s.getVaultByIndex(ctx, big.NewInt(i))
 		if err != nil {
 			return nil, err
 		}
+
 		addrs = append(addrs, addr)
 	}
 
 	slog.Info("factory vaults indexed", slog.String("factory", s.factoryAddr.Hex()), slog.Int64("vault_count", count))
+
 	return addrs, nil
 }
 
@@ -89,6 +93,7 @@ func (s *FactoryVaultSource) getAllVaults(ctx context.Context) ([]common.Address
 	}
 
 	msg := ethereum.CallMsg{To: &s.factoryAddr, Data: data}
+
 	output, err := s.client.CallContract(ctx, msg, nil)
 	if err != nil {
 		return nil, fmt.Errorf("call getAllVaults: %w", err)
@@ -105,7 +110,7 @@ func (s *FactoryVaultSource) getAllVaults(ctx context.Context) ([]common.Address
 
 	addrs, ok := results[0].([]common.Address)
 	if !ok {
-		return nil, fmt.Errorf("unexpected getAllVaults result type")
+		return nil, errors.New("unexpected getAllVaults result type")
 	}
 
 	return addrs, nil
@@ -118,6 +123,7 @@ func (s *FactoryVaultSource) getTotalVaults(ctx context.Context) (*big.Int, erro
 	}
 
 	msg := ethereum.CallMsg{To: &s.factoryAddr, Data: data}
+
 	output, err := s.client.CallContract(ctx, msg, nil)
 	if err != nil {
 		return nil, fmt.Errorf("call totalVaults: %w", err)
@@ -134,7 +140,7 @@ func (s *FactoryVaultSource) getTotalVaults(ctx context.Context) (*big.Int, erro
 
 	total, ok := results[0].(*big.Int)
 	if !ok {
-		return nil, fmt.Errorf("unexpected totalVaults result type")
+		return nil, errors.New("unexpected totalVaults result type")
 	}
 
 	return total, nil
@@ -147,6 +153,7 @@ func (s *FactoryVaultSource) getVaultByIndex(ctx context.Context, index *big.Int
 	}
 
 	msg := ethereum.CallMsg{To: &s.factoryAddr, Data: data}
+
 	output, err := s.client.CallContract(ctx, msg, nil)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("call vaults: %w", err)
@@ -163,7 +170,7 @@ func (s *FactoryVaultSource) getVaultByIndex(ctx context.Context, index *big.Int
 
 	addr, ok := results[0].(common.Address)
 	if !ok {
-		return common.Address{}, fmt.Errorf("unexpected vaults result type")
+		return common.Address{}, errors.New("unexpected vaults result type")
 	}
 
 	return addr, nil

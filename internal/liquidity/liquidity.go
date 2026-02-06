@@ -42,6 +42,7 @@ type DistributionParams struct {
 type Distribution struct {
 	CurrentTick      int32      `json:"currentTick"`
 	SqrtPriceX96     string     `json:"sqrtPriceX96"`
+	Liquidity        string     `json:"liquidity"` // Pool total liquidity L from StateView getLiquidity(poolId)
 	InitializedTicks []TickInfo `json:"initializedTicks"`
 	Bins             []Bin      `json:"bins"`
 }
@@ -50,12 +51,18 @@ type Distribution struct {
 type Service interface {
 	// GetDistribution returns the liquidity distribution for a pool.
 	GetDistribution(ctx context.Context, params *DistributionParams) (*Distribution, error)
+
+	// GetSlot0 returns the current pool state (sqrtPriceX96 and tick) for the given pool key.
+	GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*Slot0, error)
 }
 
 // Repository abstracts blockchain interaction for liquidity data.
 type Repository interface {
 	// GetSlot0 retrieves current pool state (tick and sqrtPrice).
 	GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*Slot0, error)
+
+	// GetLiquidity retrieves the pool total liquidity L.
+	GetLiquidity(ctx context.Context, poolKey *poolid.PoolKey) (*big.Int, error)
 
 	// GetTickBitmap retrieves the tick bitmap for a word position.
 	GetTickBitmap(ctx context.Context, poolKey *poolid.PoolKey, wordPos int16) (*big.Int, error)

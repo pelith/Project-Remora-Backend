@@ -53,6 +53,7 @@ type BinResponse struct {
 type DistributionResponse struct {
 	CurrentTick      int32              `json:"currentTick"`
 	SqrtPriceX96     string             `json:"sqrtPriceX96"`
+	Liquidity        string             `json:"liquidity"` // Pool total liquidity L
 	InitializedTicks []TickInfoResponse `json:"initializedTicks"`
 	Bins             []BinResponse      `json:"bins"`
 }
@@ -125,6 +126,7 @@ func getDistribution(svc liquidity.Service) func(*http.Request) (*httpwrap.Respo
 			Body: &DistributionResponse{
 				CurrentTick:      dist.CurrentTick,
 				SqrtPriceX96:     dist.SqrtPriceX96,
+				Liquidity:        dist.Liquidity,
 				InitializedTicks: ticks,
 				Bins:             bins,
 			},

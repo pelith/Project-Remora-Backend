@@ -1,41 +1,33 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:16
+    network_mode: host
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: remora_local
-    ports:
-      - 5432:5432
 
   redis:
     image: redis:7
+    network_mode: host
     restart: always
-    ports:
-      - 6379:6379
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        APP: api
+    image: myapi:amd64
+    network_mode: host
     restart: always
-    ports:
-      - 8080:8080
     environment:
       ENV: local
+      # HTTP
       APP_CONFIG_HTTP_ADDR: "0.0.0.0:8080"
-      APP_CONFIG_POSTGRESQL_HOST: postgres
+      APP_CONFIG_HTTP_CORS_ENABLE: "true"
+      # PostgreSQL
+      APP_CONFIG_POSTGRESQL_HOST: "127.0.0.1"
       APP_CONFIG_POSTGRESQL_PORT: "5432"
       APP_CONFIG_POSTGRESQL_USER: postgres
       APP_CONFIG_POSTGRESQL_PASSWORD: postgres
       APP_CONFIG_POSTGRESQL_DATABASE: remora_local
-      APP_CONFIG_REDIS_HOST: redis
+      # Redis
+      APP_CONFIG_REDIS_HOST: "127.0.0.1"
       APP_CONFIG_REDIS_PORT: "6379"
-    depends_on:
-      - postgres
-      - redis

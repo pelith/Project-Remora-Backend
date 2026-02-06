@@ -29,9 +29,10 @@ func (s *Service) sendAndWait(ctx context.Context, txName string, tx *types.Tran
 		return fmt.Errorf("%s transaction failed: receipt status %v", txName, receipt.Status)
 	}
 
-	s.logger.Info(fmt.Sprintf("%s transaction confirmed", txName), 
-		slog.String("tx", tx.Hash().Hex()), 
+	s.logger.Info(fmt.Sprintf("%s transaction confirmed", txName),
+		slog.String("tx", tx.Hash().Hex()),
 		slog.Uint64("block", receipt.BlockNumber.Uint64()))
+
 	return nil
 }
 
@@ -59,9 +60,10 @@ func (s *Service) executeRebalance(
 	maxGasPriceWeiInt, _ := maxGasPriceWei.Int(nil)
 
 	if gasPrice.Cmp(maxGasPriceWeiInt) > 0 {
-		s.logger.Warn("gas price too high, skipping rebalance", 
-			slog.String("current", gasPrice.String()), 
+		s.logger.Warn("gas price too high, skipping rebalance",
+			slog.String("current", gasPrice.String()),
 			slog.String("limit", maxGasPriceWeiInt.String()))
+
 		return fmt.Errorf("gas price too high: %s > %s", gasPrice.String(), maxGasPriceWeiInt.String())
 	}
 
@@ -85,10 +87,10 @@ func (s *Service) executeRebalance(
 		// Calculate minAmountOut with slippage protection
 		// Expected Out = amountIn * price (if zeroForOne) or amountIn / price (if oneForZero)
 		// price = sqrtPriceX96^2 / Q192
-		
 		sqrtPriceSquared := new(big.Int).Mul(currentSqrtPriceX96, currentSqrtPriceX96)
+
 		var expectedOut *big.Int
-		
+
 		if result.SwapToken0To1 {
 			// Token0 -> Token1
 			// out = in * sqrtP^2 / Q192
@@ -106,16 +108,16 @@ func (s *Service) executeRebalance(
 		minAmountOut := new(big.Int).Mul(expectedOut, multiplier)
 		minAmountOut.Div(minAmountOut, big.NewInt(10000))
 
-		s.logger.Info("executing swap", 
+		s.logger.Info("executing swap",
 			slog.String("amountIn", result.SwapAmount.String()),
 			slog.String("minAmountOut", minAmountOut.String()),
 			slog.Bool("zeroForOne", result.SwapToken0To1))
-		
+
 		tx, err := vaultClient.Swap(ctx, result.SwapToken0To1, result.SwapAmount, minAmountOut, deadline)
 		if err != nil {
 			return fmt.Errorf("swap: %w", err)
 		}
-		
+
 		if err := s.sendAndWait(ctx, "swap", tx); err != nil {
 			return err
 		}
@@ -127,6 +129,7 @@ func (s *Service) executeRebalance(
 
 	// Refresh sqrtPriceX96 after swap (price may move).
 	effectiveSqrtPriceX96 := currentSqrtPriceX96
+
 	if s.slot0Fetcher != nil && poolKey != nil {
 		if slot0, err := s.slot0Fetcher.GetSlot0(ctx, poolKey); err != nil {
 			s.logger.Warn("failed to refresh slot0 after swap", slog.Any("error", err))
@@ -167,6 +170,7 @@ func (s *Service) executeRebalance(
 		if remaining0.Sign() < 0 {
 			remaining0.SetInt64(0)
 		}
+
 		if remaining1.Sign() < 0 {
 			remaining1.SetInt64(0)
 		}
@@ -188,10 +192,12 @@ func (s *Service) executeRebalance(
 	// Update totals.
 	totalAmount0 := big.NewInt(0)
 	totalAmount1 := big.NewInt(0)
+
 	for _, p := range result.Positions {
 		totalAmount0.Add(totalAmount0, p.Amount0)
 		totalAmount1.Add(totalAmount1, p.Amount1)
 	}
+
 	result.TotalAmount0 = totalAmount0
 	result.TotalAmount1 = totalAmount1
 
@@ -209,9 +215,11 @@ func (s *Service) executeRebalance(
 		// Compute amountMax with +1 wei rounding buffer for POSM rounding up.
 		amount0Max := new(big.Int).Set(amount0Required)
 		amount1Max := new(big.Int).Set(amount1Required)
+
 		if amount0Max.Sign() > 0 {
 			amount0Max.Add(amount0Max, big.NewInt(1))
 		}
+
 		if amount1Max.Sign() > 0 {
 			amount1Max.Add(amount1Max, big.NewInt(1))
 		}
@@ -221,12 +229,15 @@ func (s *Service) executeRebalance(
 		if amount0Max.Cmp(preMint0) > 0 || amount1Max.Cmp(preMint1) > 0 {
 			available0 := new(big.Int).Set(preMint0)
 			available1 := new(big.Int).Set(preMint1)
+
 			if available0.Sign() > 0 {
 				available0.Sub(available0, big.NewInt(1))
 			}
+
 			if available1.Sign() > 0 {
 				available1.Sub(available1, big.NewInt(1))
 			}
+
 			sqrtA := allocation.TickToSqrtPriceX96(posPlan.TickLower)
 			sqrtB := allocation.TickToSqrtPriceX96(posPlan.TickUpper)
 			liquidityToMint = allocation.GetLiquidityForAmounts(effectiveSqrtPriceX96, sqrtA, sqrtB, available0, available1)
@@ -235,9 +246,11 @@ func (s *Service) executeRebalance(
 
 			amount0Max.Set(amount0Required)
 			amount1Max.Set(amount1Required)
+
 			if amount0Max.Sign() > 0 {
 				amount0Max.Add(amount0Max, big.NewInt(1))
 			}
+
 			if amount1Max.Sign() > 0 {
 				amount1Max.Add(amount1Max, big.NewInt(1))
 			}
@@ -274,7 +287,6 @@ func (s *Service) executeRebalance(
 		if err := s.sendAndWait(ctx, fmt.Sprintf("mint-%d", i), tx); err != nil {
 			return err
 		}
-
 	}
 
 	// Final vault balance after all mints.

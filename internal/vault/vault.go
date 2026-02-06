@@ -57,6 +57,7 @@ type Vault interface {
 type Client struct {
 	address  common.Address
 	contract *V4AgenticVault
+	caller   bind.ContractCaller // for POSM getPositionLiquidity calls
 	auth     *bind.TransactOpts
 }
 
@@ -70,6 +71,7 @@ func NewClient(address common.Address, backend bind.ContractBackend, auth *bind.
 	return &Client{
 		address:  address,
 		contract: contract,
+		caller:   backend,
 		auth:     auth,
 	}, nil
 }
@@ -159,6 +161,17 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 	n := length.Int64()
 	positions := make([]Position, 0, n)
 
+	var posmAddr common.Address
+
+	if c.caller != nil {
+		state, err := c.GetState(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		posmAddr = state.Posm
+	}
+
 	for i := range n {
 		tokenID, err := c.contract.PositionIds(opts, big.NewInt(i))
 		if err != nil {
@@ -175,11 +188,19 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 			return nil, err
 		}
 
+		liquidity := big.NewInt(0)
+		if c.caller != nil {
+			liquidity, err = getPositionLiquidity(ctx, c.caller, posmAddr, tokenID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		positions = append(positions, Position{
 			TokenID:   tokenID,
 			TickLower: int32(tickLower.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
 			TickUpper: int32(tickUpper.Int64()), //nolint:gosec // Uniswap tick is int24, fits in int32
-			Liquidity: big.NewInt(0),            // TODO: Fetch liquidity from PositionManager (posm)
+			Liquidity: liquidity,
 		})
 	}
 

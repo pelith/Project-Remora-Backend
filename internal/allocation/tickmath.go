@@ -1,20 +1,21 @@
 package allocation
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 )
 
-// Constants from Uniswap V3 TickMath
+// Constants from Uniswap V3 TickMath.
 const (
 	MinTick = -887272
 	MaxTick = 887272
 )
 
 var (
-	// MinSqrtRatio = 4295128739
+	// MinSqrtRatio = 4295128739.
 	MinSqrtRatio = big.NewInt(4295128739)
-	// MaxSqrtRatio = 1461446703485210103287273052203988822378723970342
+	// MaxSqrtRatio = 1461446703485210103287273052203988822378723970342.
 	MaxSqrtRatio = func() *big.Int {
 		n, _ := new(big.Int).SetString("1461446703485210103287273052203988822378723970342", 10)
 		return n
@@ -22,7 +23,7 @@ var (
 )
 
 // GetSqrtRatioAtTick calculates sqrt(1.0001^tick) * 2^96
-// Ported from Uniswap V3 TickMath.sol
+// Ported from Uniswap V3 TickMath.sol.
 func GetSqrtRatioAtTick(tick int) (*big.Int, error) {
 	if tick < MinTick || tick > MaxTick {
 		return nil, fmt.Errorf("tick %d out of range", tick)
@@ -41,78 +42,97 @@ func GetSqrtRatioAtTick(tick int) (*big.Int, error) {
 		ratio.Mul(ratio, hexToBig("0xfffcb933bd6fad37aa2d162d1a594001"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x2 != 0 {
 		ratio.Mul(ratio, hexToBig("0xfff97272373d413259a46990580e213a"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x4 != 0 {
 		ratio.Mul(ratio, hexToBig("0xfff2e50f5f656932ef12357cf3c7fdcc"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x8 != 0 {
 		ratio.Mul(ratio, hexToBig("0xffe5caca7e10e4e61c3624eaa0941cd0"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x10 != 0 {
 		ratio.Mul(ratio, hexToBig("0xffcb9843d60f6159c9db58835c926644"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x20 != 0 {
 		ratio.Mul(ratio, hexToBig("0xff973b41fa98c081472e6896dfb254c0"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x40 != 0 {
 		ratio.Mul(ratio, hexToBig("0xff2ea16466c96a3843ec78b326b52861"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x80 != 0 {
 		ratio.Mul(ratio, hexToBig("0xfe5dee046a99a2a811c461f1969c3053"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x100 != 0 {
 		ratio.Mul(ratio, hexToBig("0xfcbe86c7900a88aedcffc5d932334409"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x200 != 0 {
 		ratio.Mul(ratio, hexToBig("0xf987a7253ac413176f2b074cf7815e54"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x400 != 0 {
 		ratio.Mul(ratio, hexToBig("0xf3392b0822b70005940c7a398e4b70f3"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x800 != 0 {
 		ratio.Mul(ratio, hexToBig("0xe7159475a2c29b7443b29c7fa6e889d9"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x1000 != 0 {
 		ratio.Mul(ratio, hexToBig("0xd097f3bdfd2022b8845ad8f792aa5825"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x2000 != 0 {
 		ratio.Mul(ratio, hexToBig("0xa9f746462d870fdf8a65dc1f90e061e5"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x4000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x70d869a156d2a1b890bb3df62baf32f7"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x8000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x31be135f97d08fd981231505542fcfa6"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x10000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x9aa508b5b7a84e1c677de54f3e99bc9"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x20000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x5d6af8dedb81196699c329225ee604"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x40000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x2216e584f5fa1ea926041bedfe98"))
 		ratio.Rsh(ratio, 128)
 	}
+
 	if absTick&0x80000 != 0 {
 		ratio.Mul(ratio, hexToBig("0x48a170391f7dc42444e8fa2"))
 		ratio.Rsh(ratio, 128)
@@ -137,7 +157,7 @@ func GetSqrtRatioAtTick(tick int) (*big.Int, error) {
 // Ported from Uniswap V3 TickMath.sol.
 func GetTickAtSqrtRatio(sqrtPriceX96 *big.Int) (int, error) {
 	if sqrtPriceX96.Cmp(MinSqrtRatio) < 0 || sqrtPriceX96.Cmp(MaxSqrtRatio) >= 0 {
-		return 0, fmt.Errorf("sqrtPriceX96 out of range")
+		return 0, errors.New("sqrtPriceX96 out of range")
 	}
 
 	// ratio = sqrtPriceX96 << 32
@@ -158,7 +178,7 @@ func GetTickAtSqrtRatio(sqrtPriceX96 *big.Int) (int, error) {
 	}
 
 	// for i in 0..13
-	for i := 0; i < 14; i++ {
+	for i := range 14 {
 		// r = (r * r) >> 127
 		r.Mul(r, r)
 		r.Rsh(r, 127)
@@ -188,6 +208,7 @@ func GetTickAtSqrtRatio(sqrtPriceX96 *big.Int) (int, error) {
 	tickHigh.Rsh(tickHigh, 128)
 
 	tLow := int(tickLow.Int64())
+
 	tHigh := int(tickHigh.Int64())
 	if tLow == tHigh {
 		return tLow, nil
@@ -195,17 +216,20 @@ func GetTickAtSqrtRatio(sqrtPriceX96 *big.Int) (int, error) {
 
 	sqrtAtHigh, err := GetSqrtRatioAtTick(tHigh)
 	if err != nil {
-		return tLow, nil
+		return tLow, err
 	}
+
 	if sqrtAtHigh.Cmp(sqrtPriceX96) <= 0 {
 		return tHigh, nil
 	}
+
 	return tLow, nil
 }
 
 func hexToBig(hex string) *big.Int {
 	n := new(big.Int)
 	n.SetString(hex[2:], 16)
+
 	return n
 }
 

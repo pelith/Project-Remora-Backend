@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -20,6 +22,8 @@ import (
 	"remora/internal/user"
 	"remora/internal/user/repository"
 	"remora/internal/user/service"
+	"remora/internal/vault"
+	vaultapi "remora/internal/vault/api"
 )
 
 type Server struct {
@@ -27,6 +31,7 @@ type Server struct {
 	httpServer    *http.Server
 	pool          *pgxpool.Pool
 	liquidityRepo *liquidityrepo.Repository
+	ethClient     *ethclient.Client
 }
 
 type Service struct {
@@ -66,8 +71,30 @@ func NewServer(ctx context.Context, cfg *api.Config) (*Server, error) {
 
 	liquiditySvc := liquiditysvc.New(liquidityRepo)
 
+	var (
+		vaultFactory vaultapi.VaultFactory
+		ethClient    *ethclient.Client
+	)
+
+	if !cfg.Ethereum.UseMock && cfg.Ethereum.RPCURL != "" {
+		ethClient, err = ethclient.Dial(cfg.Ethereum.RPCURL)
+		if err != nil {
+			pool.Close()
+
+			if liquidityRepo != nil {
+				liquidityRepo.Close()
+			}
+
+			return nil, fmt.Errorf("dial ethereum: %w", err)
+		}
+
+		vaultFactory = func(addr common.Address) (vault.Vault, error) {
+			return vault.NewClient(addr, ethClient, nil)
+		}
+	}
+
 	r := chi.NewRouter()
-	AddRoutes(r, cfg, userSvc, liquiditySvc)
+	AddRoutes(r, cfg, userSvc, liquiditySvc, vaultFactory)
 
 	return &Server{
 		config: cfg,
@@ -79,6 +106,7 @@ func NewServer(ctx context.Context, cfg *api.Config) (*Server, error) {
 		},
 		pool:          pool,
 		liquidityRepo: liquidityRepo,
+		ethClient:     ethClient,
 	}, nil
 }
 
@@ -93,6 +121,10 @@ func (s *Server) Start() func(context.Context) error {
 	}()
 
 	return func(ctx context.Context) error {
+		if s.ethClient != nil {
+			s.ethClient.Close()
+		}
+
 		if s.liquidityRepo != nil {
 			s.liquidityRepo.Close()
 		}

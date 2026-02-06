@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// ERC20 ABI (minimal) for balanceOf and decimals
+// ERC20 ABI (minimal) for balanceOf and decimals.
 const erc20ABIJSON = `[
 	{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
 	{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
@@ -21,6 +22,7 @@ var erc20ABI abi.ABI
 
 func init() {
 	var err error
+
 	erc20ABI, err = abi.JSON(strings.NewReader(erc20ABIJSON))
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse ERC20 ABI: %v", err))
@@ -54,16 +56,21 @@ func (s *Service) getTokenDecimals(ctx context.Context, token common.Address) (u
 
 	// Unpack the output
 	var decimals uint8
+
 	results, err := erc20ABI.Unpack("decimals", output)
 	if err != nil {
 		return 0, fmt.Errorf("unpack decimals: %w", err)
 	}
-	
+
 	// Handle flexible unpacking (sometimes returns []interface{})
 	if len(results) > 0 {
-		decimals = results[0].(uint8)
+		d, ok := results[0].(uint8)
+		if !ok {
+			return 0, errors.New("unexpected empty result from decimals")
+		}
+		decimals = d
 	} else {
-		return 0, fmt.Errorf("unexpected empty result from decimals")
+		return 0, errors.New("unexpected empty result from decimals")
 	}
 
 	return decimals, nil
@@ -96,15 +103,20 @@ func (s *Service) getTokenBalance(ctx context.Context, token common.Address, own
 
 	// Unpack the output
 	var balance *big.Int
+
 	results, err := erc20ABI.Unpack("balanceOf", output)
 	if err != nil {
 		return nil, fmt.Errorf("unpack balanceOf: %w", err)
 	}
 
 	if len(results) > 0 {
-		balance = results[0].(*big.Int)
+		b, ok := results[0].(*big.Int)
+		if !ok {
+			return nil, errors.New("unexpected empty result from balanceOf")
+		}
+		balance = b
 	} else {
-		return nil, fmt.Errorf("unexpected empty result from balanceOf")
+		return nil, errors.New("unexpected empty result from balanceOf")
 	}
 
 	return balance, nil

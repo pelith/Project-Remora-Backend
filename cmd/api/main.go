@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"remora/internal/agent"
 	"remora/internal/api"
 	"remora/internal/config"
 	apiCfg "remora/internal/config/api"
@@ -43,6 +44,16 @@ func main() {
 	}
 
 	shutdownFn := apiServer.Start()
+
+	rebalanceStop, err := agent.StartCron(ctx, logger, false)
+	if err != nil {
+		slog.Error("rebalance cron start failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	if rebalanceStop != nil {
+		defer rebalanceStop()
+	}
 
 	slog.Info("started")
 

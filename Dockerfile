@@ -18,8 +18,8 @@ RUN go mod download
 COPY . .
 ARG TARGETOS
 ARG TARGETARCH
-ARG APP=api
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o main ./cmd/${APP}
+# Single binary: API server + rebalance cron (cron runs when REBALANCE_SCHEDULE is set)
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o main ./cmd/api
 
 FROM scratch
 
@@ -32,5 +32,7 @@ COPY --from=builder /app/main /main
 COPY --from=builder /app/config/ /config/
 
 USER go-user:go-user
+
+ENV REBALANCE_SCHEDULE="*/5 * * * *"
 
 ENTRYPOINT ["./main"]

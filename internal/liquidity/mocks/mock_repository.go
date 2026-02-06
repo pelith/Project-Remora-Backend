@@ -58,6 +58,21 @@ func (mr *MockRepositoryMockRecorder) GetSlot0(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlot0", reflect.TypeOf((*MockRepository)(nil).GetSlot0), arg0, arg1)
 }
 
+// GetLiquidity mocks base method.
+func (m *MockRepository) GetLiquidity(arg0 context.Context, arg1 *poolid.PoolKey) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLiquidity", arg0, arg1)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLiquidity indicates an expected call of GetLiquidity.
+func (mr *MockRepositoryMockRecorder) GetLiquidity(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLiquidity", reflect.TypeOf((*MockRepository)(nil).GetLiquidity), arg0, arg1)
+}
+
 // GetTickBitmap mocks base method.
 func (m *MockRepository) GetTickBitmap(arg0 context.Context, arg1 *poolid.PoolKey, arg2 int16) (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -86,4 +101,19 @@ func (m *MockRepository) GetTickInfo(arg0 context.Context, arg1 *poolid.PoolKey,
 func (mr *MockRepositoryMockRecorder) GetTickInfo(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTickInfo", reflect.TypeOf((*MockRepository)(nil).GetTickInfo), arg0, arg1, arg2)
+}
+
+// GetTickInfoBatch mocks base method.
+func (m *MockRepository) GetTickInfoBatch(arg0 context.Context, arg1 *poolid.PoolKey, arg2 []int32) ([]liquidity.TickInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTickInfoBatch", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]liquidity.TickInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTickInfoBatch indicates an expected call of GetTickInfoBatch.
+func (mr *MockRepositoryMockRecorder) GetTickInfoBatch(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTickInfoBatch", reflect.TypeOf((*MockRepository)(nil).GetTickInfoBatch), arg0, arg1, arg2)
 }

@@ -3,11 +3,10 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"reflect"
-	"strconv"
 	"strings"
 
-	"github.com/fatih/structs"
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -30,20 +29,7 @@ func Load[T any](env string) (*Config[T], error) {
 func LoadFromDir[T any](env string, configDir string) (*Config[T], error) {
 	var cfg Config[T]
 
-	cfgMap := structs.Map(cfg)
-	flatCfgMap := make(map[string]interface{})
-	flatten("", cfgMap, flatCfgMap)
-
 	v := viper.New()
-
-	for key := range flatCfgMap {
-		envKey := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
-
-		err := v.BindEnv(key, envKey)
-		if err != nil {
-			return nil, fmt.Errorf("bind env: %w", err)
-		}
-	}
 
 	v.SetConfigFile(fmt.Sprintf("%s/base.yaml", configDir))
 
@@ -53,9 +39,18 @@ func LoadFromDir[T any](env string, configDir string) (*Config[T], error) {
 
 	v.SetConfigFile(fmt.Sprintf("%s/%s.yaml", configDir, env))
 
-	err := v.MergeInConfig()
-	if err != nil {
+	if err := v.MergeInConfig(); err != nil {
 		return nil, fmt.Errorf("merge config: %w", err)
+	}
+
+	// 用 YAML 讀入後的 key（dot notation，與 config 檔一致）對應環境變數，
+	// 例如 app_config.http.addr → APP_CONFIG_HTTP_ADDR，這樣 docker-compose 的
+	// environment 才會正確覆寫。Viper Unmarshal 只會用已寫入 viper 的值。
+	for _, key := range v.AllKeys() {
+		envKey := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+		if val := os.Getenv(envKey); val != "" {
+			v.Set(key, val)
+		}
 	}
 
 	hooks := mapstructure.ComposeDecodeHookFunc(
@@ -64,33 +59,13 @@ func LoadFromDir[T any](env string, configDir string) (*Config[T], error) {
 		uuidHookFunction,
 	)
 
-	err = v.Unmarshal(&cfg, viper.DecodeHook(hooks))
-	if err != nil {
+	if err := v.Unmarshal(&cfg, viper.DecodeHook(hooks)); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 
 	cfg.Env = env
 
 	return &cfg, nil
-}
-
-func flatten(prefix string, src map[string]interface{}, dest map[string]interface{}) {
-	if len(prefix) > 0 {
-		prefix += "."
-	}
-
-	for k, v := range src {
-		switch child := v.(type) {
-		case map[string]interface{}:
-			flatten(prefix+k, child, dest)
-		case []interface{}:
-			for i := range child {
-				dest[prefix+k+"."+strconv.Itoa(i)] = child[i]
-			}
-		default:
-			dest[prefix+k] = v
-		}
-	}
 }
 
 func logLevelHookFunction(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {

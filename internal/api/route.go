@@ -17,10 +17,11 @@ import (
 	liquidityapi "remora/internal/liquidity/api"
 	"remora/internal/user"
 	userapi "remora/internal/user/api"
+	vaultapi "remora/internal/vault/api"
 )
 
 // AddRoutes registers API routes on the provided router (central routing).
-func AddRoutes(r chi.Router, cfg *apiconfig.Config, userSvc user.Service, liquiditySvc liquidity.Service) {
+func AddRoutes(r chi.Router, cfg *apiconfig.Config, userSvc user.Service, liquiditySvc liquidity.Service, vaultFactory vaultapi.VaultFactory) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: parseLogLevel(cfg.Log.Level),
 	}))
@@ -45,6 +46,7 @@ func AddRoutes(r chi.Router, cfg *apiconfig.Config, userSvc user.Service, liquid
 	r.Route("/v1", func(r chi.Router) {
 		userapi.AddRoutes(r, userSvc)
 		liquidityapi.AddRoutes(r, liquiditySvc)
+		vaultapi.AddRoutes(r, vaultFactory, liquiditySvc)
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {

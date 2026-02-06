@@ -21,10 +21,13 @@ release:
 # Tools
 
 lint:
-	@golangci-lint run ./... -c ./.golangci.yml
+	@go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run ./... -c ./.golangci.yml
+
+lint-fix:
+	@go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run ./... -c ./.golangci.yml --fix
 
 gci-format:
-	@gci write --skip-generated -s standard -s default -s "Prefix(remora)" ./
+	@go run github.com/daixiang0/gci write --skip-generated -s standard -s default -s "Prefix(remora)" ./
 
 test:
 	@go test ./... -race  

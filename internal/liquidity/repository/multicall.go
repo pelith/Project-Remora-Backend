@@ -90,6 +90,7 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 				LiquidityNet:   big.NewInt(0),
 			}
 		}
+
 		return result, nil
 	}
 
@@ -108,8 +109,10 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 	var wg sync.WaitGroup
 	for i, chunk := range chunks {
 		wg.Add(1)
+
 		go func(idx int, tickChunk []int32) {
 			defer wg.Done()
+
 			infos, err := r.fetchTickInfoChunk(ctx, poolID, tickChunk)
 			results <- chunkResult{index: idx, infos: infos, err: err}
 		}(i, chunk)
@@ -120,10 +123,12 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 
 	// Reassemble in order.
 	ordered := make([][]liquidity.TickInfo, len(chunks))
+
 	for res := range results {
 		if res.err != nil {
 			return nil, res.err
 		}
+
 		ordered[res.index] = res.infos
 	}
 
@@ -143,6 +148,7 @@ func (r *Repository) fetchTickInfoChunk(ctx context.Context, poolID [32]byte, ti
 		if err != nil {
 			return nil, fmt.Errorf("pack getTickInfo for tick %d: %w", tick, err)
 		}
+
 		calls[i] = multicall3Call{
 			Target:       r.stateViewAddr,
 			AllowFailure: false,
@@ -181,6 +187,7 @@ func (r *Repository) fetchTickInfoChunk(ctx context.Context, poolID [32]byte, ti
 	}
 
 	tickInfos := make([]liquidity.TickInfo, len(ticks))
+
 	for i, res := range resultsRaw {
 		if !res.Success {
 			return nil, fmt.Errorf("multicall3 call failed for tick %d", ticks[i])
@@ -207,13 +214,15 @@ func (r *Repository) fetchTickInfoChunk(ctx context.Context, poolID [32]byte, ti
 // chunkSlice splits a slice into chunks of the given size.
 func chunkSlice(ticks []int32, size int) [][]int32 {
 	var chunks [][]int32
+
 	for i := 0; i < len(ticks); i += size {
 		end := i + size
 		if end > len(ticks) {
 			end = len(ticks)
 		}
+
 		chunks = append(chunks, ticks[i:end])
 	}
+
 	return chunks
 }
-

@@ -2,9 +2,44 @@
     "info": {
       "name": "Uniswap v4 Liquidity Distribution",
       "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-      "description": "Uniswap v4 mainnet pools for liquidity distribution API"
+      "description": "Uniswap v4 liquidity distribution API and Vault API (state, positions). Set collection variable vault_address to your V4AgenticVault contract address."
     },
+    "variable": [
+      {
+        "key": "vault_address",
+        "value": "0x0000000000000000000000000000000000000000",
+        "type": "string"
+      }
+    ],
     "item": [
+      {
+        "name": "Vault - Get State",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/vaults/{{vault_address}}/state",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "vaults", "{{vault_address}}", "state"]
+          }
+        }
+      },
+      {
+        "name": "Vault - Get Positions",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://127.0.0.1:8080/v1/vaults/{{vault_address}}/positions",
+            "protocol": "http",
+            "host": ["127", "0", "0", "1"],
+            "port": "8080",
+            "path": ["v1", "vaults", "{{vault_address}}", "positions"]
+          }
+        }
+      },
       {
         "name": "ETH / USDC",
         "request": {
