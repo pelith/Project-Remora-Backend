@@ -16,8 +16,9 @@ import (
 
 // Repository implements liquidity.Repository using StateView contract.
 type Repository struct {
-	client   *ethclient.Client
-	contract *contracts.StateView
+	client        *ethclient.Client
+	contract      *contracts.StateView
+	stateViewAddr common.Address
 }
 
 // Config contains configuration for repository.
@@ -43,8 +44,9 @@ func New(cfg Config) (*Repository, error) {
 	}
 
 	return &Repository{
-		client:   client,
-		contract: contract,
+		client:        client,
+		contract:      contract,
+		stateViewAddr: contractAddr,
 	}, nil
 }
 

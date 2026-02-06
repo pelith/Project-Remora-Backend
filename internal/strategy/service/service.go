@@ -38,13 +38,13 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 		return nil, fmt.Errorf("get distribution: %w", err)
 	}
 
+	sqrtPriceX96 := new(big.Int)
+	sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
+
 	// Step 2: Convert liquidity bins to allocation bins (filtered by vault's allowed tick range)
 	allocationBins := toAllocationBins(dist.Bins, dist.CurrentTick, params.AllowedTickLower, params.AllowedTickUpper)
 
 	if len(allocationBins) == 0 {
-		sqrtPriceX96 := new(big.Int)
-		sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
-
 		return &strategy.ComputeResult{
 			CurrentTick:  dist.CurrentTick,
 			SqrtPriceX96: sqrtPriceX96,
@@ -57,9 +57,6 @@ func (s *Service) ComputeTargetPositions(ctx context.Context, params *strategy.C
 
 	// Step 3: Run coverage algorithm
 	result := coverage.Run(ctx, allocationBins, params.AlgoConfig)
-
-	sqrtPriceX96 := new(big.Int)
-	sqrtPriceX96.SetString(dist.SqrtPriceX96, 10)
 
 	return &strategy.ComputeResult{
 		CurrentTick:  dist.CurrentTick,

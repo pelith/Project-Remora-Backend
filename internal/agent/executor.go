@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"remora/internal/allocation"
+	"remora/internal/liquidity/poolid"
 	"remora/internal/vault"
 )
 
@@ -44,6 +45,7 @@ func (s *Service) executeRebalance(
 	currentSqrtPriceX96 *big.Int,
 	token0 common.Address,
 	token1 common.Address,
+	poolKey *poolid.PoolKey,
 ) error {
 	// 0. Gas Price Check
 	gasPrice, err := s.ethClient.SuggestGasPrice(ctx)
@@ -119,18 +121,79 @@ func (s *Service) executeRebalance(
 		}
 	}
 
-	// Post-swap: compare actual vault balance vs allocation expectation
+	// Read actual vault balances after swap for refit calculation.
 	postSwap0, _ := s.getTokenBalance(ctx, token0, vaultClient.Address())
 	postSwap1, _ := s.getTokenBalance(ctx, token1, vaultClient.Address())
-	surplus0 := new(big.Int).Sub(postSwap0, result.TotalAmount0)
-	surplus1 := new(big.Int).Sub(postSwap1, result.TotalAmount1)
-	s.logger.Info("post-swap balance vs allocation",
-		slog.String("vault_token0", postSwap0.String()),
-		slog.String("vault_token1", postSwap1.String()),
-		slog.String("alloc_needs_token0", result.TotalAmount0.String()),
-		slog.String("alloc_needs_token1", result.TotalAmount1.String()),
-		slog.String("surplus_token0", surplus0.String()),
-		slog.String("surplus_token1", surplus1.String()))
+
+	// Refresh sqrtPriceX96 after swap (price may move).
+	effectiveSqrtPriceX96 := currentSqrtPriceX96
+	if s.slot0Fetcher != nil && poolKey != nil {
+		if slot0, err := s.slot0Fetcher.GetSlot0(ctx, poolKey); err != nil {
+			s.logger.Warn("failed to refresh slot0 after swap", slog.Any("error", err))
+		} else if slot0 != nil && slot0.SqrtPriceX96 != nil {
+			effectiveSqrtPriceX96 = slot0.SqrtPriceX96
+		}
+	}
+
+	// Refit positions to actual post-swap balances.
+	// Out-of-range positions (single-token) are unaffected by price movement — keep as-is.
+	// Only the in-range position (contains current price) needs recalculation.
+	remaining0 := new(big.Int).Set(postSwap0)
+	remaining1 := new(big.Int).Set(postSwap1)
+	inRangeIdx := -1
+
+	for i := range result.Positions {
+		p := &result.Positions[i]
+		sqrtA := allocation.TickToSqrtPriceX96(p.TickLower)
+		sqrtB := allocation.TickToSqrtPriceX96(p.TickUpper)
+
+		if effectiveSqrtPriceX96.Cmp(sqrtA) > 0 && effectiveSqrtPriceX96.Cmp(sqrtB) < 0 {
+			inRangeIdx = i
+			continue
+		}
+
+		// Out-of-range: liquidity unchanged, recompute amounts at new price for consistency.
+		p.Amount0 = allocation.GetAmount0ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, p.Liquidity)
+		p.Amount1 = allocation.GetAmount1ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, p.Liquidity)
+		remaining0.Sub(remaining0, p.Amount0)
+		remaining1.Sub(remaining1, p.Amount1)
+	}
+
+	if inRangeIdx >= 0 {
+		p := &result.Positions[inRangeIdx]
+		sqrtA := allocation.TickToSqrtPriceX96(p.TickLower)
+		sqrtB := allocation.TickToSqrtPriceX96(p.TickUpper)
+
+		if remaining0.Sign() < 0 {
+			remaining0.SetInt64(0)
+		}
+		if remaining1.Sign() < 0 {
+			remaining1.SetInt64(0)
+		}
+
+		newLiq := allocation.GetLiquidityForAmounts(effectiveSqrtPriceX96, sqrtA, sqrtB, remaining0, remaining1)
+		p.Liquidity = newLiq
+		p.Amount0 = allocation.GetAmount0ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, newLiq)
+		p.Amount1 = allocation.GetAmount1ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, newLiq)
+
+		s.logger.Info("refitted in-range position to post-swap balances",
+			slog.Int("index", inRangeIdx),
+			slog.String("remaining0", remaining0.String()),
+			slog.String("remaining1", remaining1.String()),
+			slog.String("new_liquidity", newLiq.String()),
+			slog.String("amount0", p.Amount0.String()),
+			slog.String("amount1", p.Amount1.String()))
+	}
+
+	// Update totals.
+	totalAmount0 := big.NewInt(0)
+	totalAmount1 := big.NewInt(0)
+	for _, p := range result.Positions {
+		totalAmount0.Add(totalAmount0, p.Amount0)
+		totalAmount1.Add(totalAmount1, p.Amount1)
+	}
+	result.TotalAmount0 = totalAmount0
+	result.TotalAmount1 = totalAmount1
 
 	// 3. Mint New Positions
 	for i, posPlan := range result.Positions {
@@ -143,13 +206,47 @@ func (s *Service) executeRebalance(
 		amount0Required := posPlan.Amount0
 		amount1Required := posPlan.Amount1
 
-		// Add tiny rounding buffer (1 bps = 0.01%) to handle POSM rounding up.
-		// The vault contract consumes exactly amount0Max, so keep it minimal.
-		roundingBuffer := big.NewInt(10001) // 1.0001x
-		amount0Max := new(big.Int).Mul(amount0Required, roundingBuffer)
-		amount0Max.Div(amount0Max, big.NewInt(10000))
-		amount1Max := new(big.Int).Mul(amount1Required, roundingBuffer)
-		amount1Max.Div(amount1Max, big.NewInt(10000))
+		// Compute amountMax with +1 wei rounding buffer for POSM rounding up.
+		amount0Max := new(big.Int).Set(amount0Required)
+		amount1Max := new(big.Int).Set(amount1Required)
+		if amount0Max.Sign() > 0 {
+			amount0Max.Add(amount0Max, big.NewInt(1))
+		}
+		if amount1Max.Sign() > 0 {
+			amount1Max.Add(amount1Max, big.NewInt(1))
+		}
+
+		// If vault balance can't cover amountMax (including rounding buffer),
+		// recalculate L from (balance - 1 wei) so that amount + 1 <= balance.
+		if amount0Max.Cmp(preMint0) > 0 || amount1Max.Cmp(preMint1) > 0 {
+			available0 := new(big.Int).Set(preMint0)
+			available1 := new(big.Int).Set(preMint1)
+			if available0.Sign() > 0 {
+				available0.Sub(available0, big.NewInt(1))
+			}
+			if available1.Sign() > 0 {
+				available1.Sub(available1, big.NewInt(1))
+			}
+			sqrtA := allocation.TickToSqrtPriceX96(posPlan.TickLower)
+			sqrtB := allocation.TickToSqrtPriceX96(posPlan.TickUpper)
+			liquidityToMint = allocation.GetLiquidityForAmounts(effectiveSqrtPriceX96, sqrtA, sqrtB, available0, available1)
+			amount0Required = allocation.GetAmount0ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, liquidityToMint)
+			amount1Required = allocation.GetAmount1ForLiquidity(effectiveSqrtPriceX96, sqrtA, sqrtB, liquidityToMint)
+
+			amount0Max.Set(amount0Required)
+			amount1Max.Set(amount1Required)
+			if amount0Max.Sign() > 0 {
+				amount0Max.Add(amount0Max, big.NewInt(1))
+			}
+			if amount1Max.Sign() > 0 {
+				amount1Max.Add(amount1Max, big.NewInt(1))
+			}
+
+			s.logger.Info("adjusted liquidity to fit vault balance",
+				slog.Int("index", i),
+				slog.String("original_liquidity", posPlan.Liquidity.String()),
+				slog.String("adjusted_liquidity", liquidityToMint.String()))
+		}
 
 		s.logger.Info("minting new position",
 			slog.Int("index", i),
@@ -178,18 +275,14 @@ func (s *Service) executeRebalance(
 			return err
 		}
 
-		// Post-mint: compare actual consumed vs expected
-		postMint0, _ := s.getTokenBalance(ctx, token0, vaultClient.Address())
-		postMint1, _ := s.getTokenBalance(ctx, token1, vaultClient.Address())
-		consumed0 := new(big.Int).Sub(preMint0, postMint0)
-		consumed1 := new(big.Int).Sub(preMint1, postMint1)
-		s.logger.Info("mint consumed vs expected",
-			slog.Int("index", i),
-			slog.String("expected0", amount0Required.String()),
-			slog.String("consumed0", consumed0.String()),
-			slog.String("expected1", amount1Required.String()),
-			slog.String("consumed1", consumed1.String()))
 	}
+
+	// Final vault balance after all mints.
+	final0, _ := s.getTokenBalance(ctx, token0, vaultClient.Address())
+	final1, _ := s.getTokenBalance(ctx, token1, vaultClient.Address())
+	s.logger.Info("rebalance complete — vault balances",
+		slog.String("token0_remaining", final0.String()),
+		slog.String("token1_remaining", final1.String()))
 
 	return nil
 }

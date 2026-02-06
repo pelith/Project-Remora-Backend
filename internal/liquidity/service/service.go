@@ -3,10 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"log/slog"
+	"math/big"
 	"sort"
-
 	"remora/internal/liquidity"
 	"remora/internal/liquidity/poolid"
 )
@@ -104,29 +103,26 @@ func (s *Service) getInitializedTicks(ctx context.Context, poolKey *poolid.PoolK
 	wordPosLower := s.getWordPos(tickLower, tickSpacing)
 	wordPosUpper := s.getWordPos(tickUpper, tickSpacing)
 
-	var ticks []liquidity.TickInfo
-
-	// Scan each word position
+	// Phase 1: Collect all initialized tick indices from bitmaps.
+	var tickIndices []int32
 	for wordPos := wordPosLower; wordPos <= wordPosUpper; wordPos++ {
 		bitmap, err := s.repo.GetTickBitmap(ctx, poolKey, wordPos)
 		if err != nil {
 			return nil, fmt.Errorf("get tick bitmap for wordPos %d: %w", wordPos, err)
 		}
 
-		// Parse bitmap to find initialized ticks
 		initializedTicks := s.parseTickBitmap(bitmap, wordPos, tickSpacing)
-
-		// Filter ticks within range
 		for _, tick := range initializedTicks {
 			if tick >= tickLower && tick <= tickUpper {
-				tickInfo, err := s.repo.GetTickInfo(ctx, poolKey, tick)
-				if err != nil {
-					return nil, fmt.Errorf("get tick info for tick %d: %w", tick, err)
-				}
-
-				ticks = append(ticks, *tickInfo)
+				tickIndices = append(tickIndices, tick)
 			}
 		}
+	}
+
+	// Phase 2: Fetch all tick info in a single batched call (via Multicall3).
+	ticks, err := s.repo.GetTickInfoBatch(ctx, poolKey, tickIndices)
+	if err != nil {
+		return nil, fmt.Errorf("get tick info batch: %w", err)
 	}
 
 	// Sort ticks in ascending order

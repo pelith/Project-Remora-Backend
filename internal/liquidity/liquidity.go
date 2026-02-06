@@ -62,4 +62,7 @@ type Repository interface {
 
 	// GetTickInfo retrieves liquidity info for a specific tick.
 	GetTickInfo(ctx context.Context, poolKey *poolid.PoolKey, tick int32) (*TickInfo, error)
+
+	// GetTickInfoBatch retrieves liquidity info for multiple ticks in one call.
+	GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolKey, ticks []int32) ([]TickInfo, error)
 }

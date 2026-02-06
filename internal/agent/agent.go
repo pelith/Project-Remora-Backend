@@ -11,6 +11,7 @@ import (
 
 	"remora/internal/allocation"
 	"remora/internal/coverage"
+	"remora/internal/liquidity"
 	"remora/internal/liquidity/poolid"
 	"remora/internal/signer"
 	"remora/internal/strategy"
@@ -22,6 +23,11 @@ const defaultDeviationThreshold = 0.1
 // VaultSource provides access to vault addresses.
 type VaultSource interface {
 	GetVaultAddresses(ctx context.Context) ([]common.Address, error)
+}
+
+// Slot0Fetcher provides access to current pool slot0 (tick/sqrtPrice).
+type Slot0Fetcher interface {
+	GetSlot0(ctx context.Context, poolKey *poolid.PoolKey) (*liquidity.Slot0, error)
 }
 
 // RebalanceResult represents the result of a rebalance operation.
@@ -44,6 +50,7 @@ type Service struct {
 	mintSlippageBps    int64
 	maxGasPriceGwei    float64
 	tickRangeOverride  int32
+	slot0Fetcher       Slot0Fetcher
 }
 
 // New creates a new agent service.
@@ -53,6 +60,7 @@ func New(
 	signer *signer.Signer,
 	ethClient *ethclient.Client,
 	logger *slog.Logger,
+	slot0Fetcher Slot0Fetcher,
 ) *Service {
 	return &Service{
 		vaultSource:        vaultSource,
@@ -60,6 +68,7 @@ func New(
 		signer:             signer,
 		ethClient:          ethClient,
 		logger:             logger,
+		slot0Fetcher:       slot0Fetcher,
 		deviationThreshold: 0.1,
 		swapSlippageBps:    50,  // default: 0.5%
 		mintSlippageBps:    50,  // default: 0.5%
@@ -125,6 +134,16 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	if err != nil {
 		s.logger.Error("failed to get vault state", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "get_state_error"}
+	}
+
+	// Check if agent is paused for this vault
+	if state.AgentPaused {
+		s.logger.Info("vault agent is paused, skipping", slog.String("address", vaultAddr.Hex()))
+		return RebalanceResult{
+			VaultAddress: vaultAddr,
+			Rebalanced:   false,
+			Reason:       "agent_paused",
+		}
 	}
 
 	// Step 3: Compute target positions using strategy service
@@ -343,7 +362,7 @@ func (s *Service) processVault(ctx context.Context, vaultAddr common.Address) Re
 	}
 
 	// Step 6: Execute rebalance
-	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult, targetResult.SqrtPriceX96, token0, token1)
+	err = s.executeRebalance(ctx, vaultClient, positions, allocationResult, targetResult.SqrtPriceX96, token0, token1, &liqPoolKey)
 	if err != nil {
 		s.logger.Error("failed to execute rebalance", slog.Any("error", err))
 		return RebalanceResult{VaultAddress: vaultAddr, Reason: "execution_error"}

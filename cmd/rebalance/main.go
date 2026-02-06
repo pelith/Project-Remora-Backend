@@ -96,6 +96,7 @@ func main() {
 		sgn,
 		ethClient,
 		logger,
+		liqRepo,
 	)
 
 	// Load protection settings from env
