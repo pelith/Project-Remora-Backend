@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -13,6 +14,8 @@ import (
 	"remora/internal/liquidity"
 	"remora/internal/liquidity/poolid"
 )
+
+const multicallChunkSize = 30 // ticks per multicall batch
 
 // Multicall3 is deployed at a deterministic address on all EVM chains.
 var multicall3Addr = common.HexToAddress("0xcA11bde05977b3631167028862bE2a173976CA11")
@@ -69,8 +72,9 @@ type multicall3Call struct {
 	CallData     []byte
 }
 
-// GetTickInfoBatch fetches tick info for multiple ticks in a single RPC call
-// using the Multicall3 contract.
+// GetTickInfoBatch fetches tick info for multiple ticks using Multicall3.
+// Ticks are split into chunks and fetched in parallel to avoid slow single-call
+// execution on forked nodes where each storage read hits the remote RPC.
 func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolKey, ticks []int32) ([]liquidity.TickInfo, error) {
 	if len(ticks) == 0 {
 		return nil, nil
@@ -90,7 +94,49 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 	}
 
 	poolID := poolid.CalculatePoolID(poolKey)
-	// Build individual calldata for each getTickInfo call.
+
+	// Split into chunks and fetch in parallel.
+	type chunkResult struct {
+		index int
+		infos []liquidity.TickInfo
+		err   error
+	}
+
+	chunks := chunkSlice(ticks, multicallChunkSize)
+	results := make(chan chunkResult, len(chunks))
+
+	var wg sync.WaitGroup
+	for i, chunk := range chunks {
+		wg.Add(1)
+		go func(idx int, tickChunk []int32) {
+			defer wg.Done()
+			infos, err := r.fetchTickInfoChunk(ctx, poolID, tickChunk)
+			results <- chunkResult{index: idx, infos: infos, err: err}
+		}(i, chunk)
+	}
+
+	wg.Wait()
+	close(results)
+
+	// Reassemble in order.
+	ordered := make([][]liquidity.TickInfo, len(chunks))
+	for res := range results {
+		if res.err != nil {
+			return nil, res.err
+		}
+		ordered[res.index] = res.infos
+	}
+
+	tickInfos := make([]liquidity.TickInfo, 0, len(ticks))
+	for _, infos := range ordered {
+		tickInfos = append(tickInfos, infos...)
+	}
+
+	return tickInfos, nil
+}
+
+// fetchTickInfoChunk executes a single multicall3 batch for a chunk of ticks.
+func (r *Repository) fetchTickInfoChunk(ctx context.Context, poolID [32]byte, ticks []int32) ([]liquidity.TickInfo, error) {
 	calls := make([]multicall3Call, len(ticks))
 	for i, tick := range ticks {
 		callData, err := stateViewABI.Pack("getTickInfo", poolID, big.NewInt(int64(tick)))
@@ -104,13 +150,11 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 		}
 	}
 
-	// Encode aggregate3 call.
 	input, err := multicall3ABI.Pack("aggregate3", calls)
 	if err != nil {
 		return nil, fmt.Errorf("pack aggregate3: %w", err)
 	}
 
-	// Execute single eth_call.
 	output, err := r.client.CallContract(ctx, ethereum.CallMsg{
 		To:   &multicall3Addr,
 		Data: input,
@@ -119,13 +163,11 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 		return nil, fmt.Errorf("multicall3 aggregate3: %w", err)
 	}
 
-	// Decode results.
 	decoded, err := multicall3ABI.Unpack("aggregate3", output)
 	if err != nil {
 		return nil, fmt.Errorf("unpack aggregate3: %w", err)
 	}
 
-	// The result is []struct{Success bool, ReturnData []byte}
 	resultsRaw, ok := decoded[0].([]struct {
 		Success    bool   `json:"success"`
 		ReturnData []byte `json:"returnData"`
@@ -160,5 +202,18 @@ func (r *Repository) GetTickInfoBatch(ctx context.Context, poolKey *poolid.PoolK
 	}
 
 	return tickInfos, nil
+}
+
+// chunkSlice splits a slice into chunks of the given size.
+func chunkSlice(ticks []int32, size int) [][]int32 {
+	var chunks [][]int32
+	for i := 0; i < len(ticks); i += size {
+		end := i + size
+		if end > len(ticks) {
+			end = len(ticks)
+		}
+		chunks = append(chunks, ticks[i:end])
+	}
+	return chunks
 }
 
